@@ -14,9 +14,9 @@ public partial class MainWindow
     private RegionWindow? regionWindow;
     private void InitializeScreenshots()
     {
-        var capture = new Button { Content = "＋ Скриншот", HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0, 0, 0, 8) };
+        var capture = new Button { Content = "＋  Скриншот", ToolTip = "Прикрепить область экрана", Background = System.Windows.Media.Brushes.Transparent, Padding = new(6,6,6,6) };
         capture.Click += (_, _) => OnScreenshotRequested();
-        Composer.Children.Insert(0, capture); Composer.Children.Insert(1, attachmentPanel);
+        composerTools.Children.Add(capture); Composer.Children.Insert(0, attachmentPanel);
     }
     partial void OnScreenshotRequested() => _ = CaptureRegionAsync();
     private async Task CaptureRegionAsync()

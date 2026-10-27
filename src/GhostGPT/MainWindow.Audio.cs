@@ -11,7 +11,7 @@ public partial class MainWindow
     private PasswordBox audioKey = null!;
     private ComboBox microphones = null!, outputs = null!;
     private Button recordButton = null!;
-    private readonly TextBlock recordingStatus = new() { Text = "●  Запись остановлена", Foreground = Brushes.MediumPurple, Margin = new(0, 14, 0, 14) };
+    private readonly TextBlock recordingStatus = new() { Text = "●  Запись остановлена", Foreground = Brushes.LightGray, Margin = new(0, 14, 0, 14) };
     private readonly StackPanel transcriptHost = new();
     private AudioCapture? audioCapture;
     private AudioQueue? audioQueue;
@@ -43,7 +43,7 @@ public partial class MainWindow
         top.Children.Add(new TextBlock { Text = "Микрофон" }); microphones = new ComboBox { DisplayMemberPath = "Name" }; top.Children.Add(microphones);
         top.Children.Add(new TextBlock { Text = "Звук компьютера" }); outputs = new ComboBox { DisplayMemberPath = "Name" }; top.Children.Add(outputs);
         var row = new WrapPanel(); top.Children.Add(row);
-        recordButton = new Button { Content = "Начать запись", Background = new SolidColorBrush(Color.FromRgb(104,80,201)) }; recordButton.Click += (_, _) => { if (audioCapture is null) StartAudio(); else StopAudio(); }; row.Children.Add(recordButton);
+        recordButton = new Button { Content = "Начать запись", Background = new SolidColorBrush(Color.FromRgb(72,72,72)) }; recordButton.Click += (_, _) => { if (audioCapture is null) StartAudio(); else StopAudio(); }; row.Children.Add(recordButton);
         var refresh = new Button { Content = "Обновить устройства" }; refresh.Click += (_, _) => { if (audioCapture is null) RefreshDevices(); }; row.Children.Add(refresh);
         top.Children.Add(recordingStatus);
         dock.Children.Add(new ScrollViewer { Content = transcriptHost, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 400 });

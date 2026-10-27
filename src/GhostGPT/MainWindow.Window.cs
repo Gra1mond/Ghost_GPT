@@ -11,7 +11,7 @@ public partial class MainWindow
     private void InitializeWindowFeatures()
     {
         settings = settingsStore.Load();
-        vm.WindowOpacity = Math.Clamp(settings.Opacity, .55, 1);
+        vm.BackgroundOpacity = settings.Opacity;
         SourceInitialized += (_, _) =>
         {
             windowService = new(this);
@@ -46,7 +46,7 @@ public partial class MainWindow
     private void ApplyWindowSettings() { captureStatus.Text = windowService?.Apply(settings) ?? ""; SaveSettings(); }
     private void SaveSettings()
     {
-        settings.Left = Left; settings.Top = Top; settings.Width = Width; settings.Height = compact ? expandedHeight : Height; settings.Opacity = vm.WindowOpacity;
+        settings.Left = Left; settings.Top = Top; settings.Width = Width; settings.Height = compact ? expandedHeight : Height; settings.Opacity = vm.BackgroundOpacity;
         try { settingsStore.Save(settings); } catch { vm.Status = "Не удалось сохранить настройки."; }
     }
     private void HandleHotkey(int id)

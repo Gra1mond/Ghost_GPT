@@ -108,6 +108,16 @@ internal static class Program
         var content = (System.Windows.FrameworkElement)window.Content!;
         content.Measure(new(740, 790)); content.Arrange(new(0, 0, 740, 790)); content.UpdateLayout();
         Check(content.ActualWidth == 740, "WPF layout");
+        var viewModel = (MainViewModel)window.DataContext;
+        viewModel.BackgroundTransparency = .75;
+        content.UpdateLayout();
+        var surface = (System.Windows.Controls.Border)window.FindName("WindowSurface");
+        var color = ((System.Windows.Media.SolidColorBrush)surface.Background).Color;
+        Check(window.Opacity == 1 && window.AllowsTransparency && color.A == 64 && color.R == 33, "transparency changes background alpha, not window opacity or RGB");
+        var transparentFrame = new System.Windows.Media.Imaging.RenderTargetBitmap(740,790,96,96,System.Windows.Media.PixelFormats.Pbgra32); transparentFrame.Render(content);
+        var pixel = new byte[4]; transparentFrame.CopyPixels(new System.Windows.Int32Rect(730,400,1,1),pixel,4,0);
+        Check(pixel[3] == 64, "rendered background is genuinely translucent");
+        viewModel.BackgroundOpacity = .96;
         foreach (double width in new[] { 480d, 740d, 1200d })
         {
             content.Measure(new(width, 790)); content.Arrange(new(0, 0, width, 790)); content.UpdateLayout();
@@ -121,11 +131,19 @@ internal static class Program
                 var navigation = (System.Windows.Controls.StackPanel)window.FindName("Navigation");
                 int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : 2;
                 ((System.Windows.Controls.Button)navigation.Children[tab]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
-                content.Measure(new(740, 790)); content.Arrange(new(0, 0, 740, 790)); content.UpdateLayout();
-                var image = new System.Windows.Media.Imaging.RenderTargetBitmap(740, 790, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); image.Render(content);
+                content.Measure(new(1040, 820)); content.Arrange(new(0, 0, 1040, 820)); content.UpdateLayout();
+                var image = new System.Windows.Media.Imaging.RenderTargetBitmap(1040, 820, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); image.Render(content);
                 var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
                 using var stream = System.IO.File.Create($"artifacts/previews/{name}.png"); encoder.Save(stream);
             }
+            var nav = (System.Windows.Controls.StackPanel)window.FindName("Navigation");
+            ((System.Windows.Controls.Button)nav.Children[0]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            viewModel.Messages.Add(new("user", "Объясни, чем асинхронный код отличается от параллельного."));
+            viewModel.Messages.Add(new("assistant", "Асинхронность помогает **не блокировать ожидание**, а параллельность — выполнять несколько вычислений одновременно.\n\n### Пример\nПока приложение ждёт ответ API, интерфейс остаётся отзывчивым.\n\n```csharp\nvar reply = await provider.SendAsync(message);\nShowReply(reply);\n```\n\nОдин подход не исключает другой."));
+            content.Measure(new(1040,820)); content.Arrange(new(0,0,1040,820)); content.UpdateLayout();
+            var demo = new System.Windows.Media.Imaging.RenderTargetBitmap(1040,820,96,96,System.Windows.Media.PixelFormats.Pbgra32); demo.Render(content);
+            var demoEncoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); demoEncoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(demo));
+            using var demoStream = System.IO.File.Create("artifacts/previews/ChatExample.png"); demoEncoder.Save(demoStream);
         }
         window.Close();
     }

@@ -13,8 +13,8 @@ public sealed class Settings
     public string Instruction { get; set; } = "Отвечай на русском, кратко и по существу. Код оформляй блоками Markdown.";
     public double Left { get; set; } = 100;
     public double Top { get; set; } = 100;
-    public double Width { get; set; } = 740;
-    public double Height { get; set; } = 790;
+    public double Width { get; set; } = 1040;
+    public double Height { get; set; } = 820;
     public double Opacity { get; set; } = .97;
     public bool AlwaysOnTop { get; set; } = true;
     public bool ExcludeCapture { get; set; } = true;
