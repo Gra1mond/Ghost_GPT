@@ -3,6 +3,11 @@ using System.Text.Json;
 namespace GhostGPT.Services;
 public sealed class Settings
 {
+    public string ChatEndpoint { get; set; } = "https://api.openai.com/v1";
+    public string ChatModel { get; set; } = "";
+    public string VisionModel { get; set; } = "";
+    public string ProtectedChatKey { get; set; } = "";
+    public string Instruction { get; set; } = "Отвечай на русском, кратко и по существу. Код оформляй блоками Markdown.";
     public double Left { get; set; } = 100;
     public double Top { get; set; } = 100;
     public double Width { get; set; } = 740;

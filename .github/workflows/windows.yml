@@ -11,3 +11,4 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - run: dotnet build src/GhostGPT/GhostGPT.csproj -c Release
+      - run: dotnet run --project tests/GhostGPT.Checks -c Release
