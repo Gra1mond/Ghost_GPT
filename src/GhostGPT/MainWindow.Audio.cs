@@ -114,5 +114,5 @@ public partial class MainWindow
         audioWorker = null;
         if (recordButton is not null) { recordButton.Content = "Начать запись"; microphones.IsEnabled = outputs.IsEnabled = true; recordingStatus.Text = "●  Запись остановлена"; }
     }
-    partial void OnPanic() { panicDuringCapture = true; StopAudio(); vm.Cancel(); regionWindow?.Close(); }
+    partial void OnPanic() { panicDuringCapture = true; StopAudio(); vm.Cancel(); summaryCancellation?.Cancel(); regionWindow?.Close(); }
 }

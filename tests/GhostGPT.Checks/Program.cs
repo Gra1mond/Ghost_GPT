@@ -61,6 +61,14 @@ internal static class Program
             return new(HttpStatusCode.OK) { Content = new StringContent("data: [DONE]\n") };
         }));
         await foreach (var _ in new CompatibleProvider(visionClient).StreamAsync(options, [new("user", "image", "data:image/png;base64,abc")], default)) { }
+        var context = new ConversationContext();
+        for (int i = 0; i < 10; i++) context.Add("mic", new string('a', 3000));
+        var snapshot = context.Snapshot();
+        Check(snapshot.Recent.Length < 12100 && snapshot.Older.Length < 24100, "conversation bounded");
+        context.Add("mic", new string('b', 8000));
+        context.CommitSummary(snapshot, "summary");
+        Check(context.Snapshot().Older.Length > 0 && context.Summary == "summary", "new transcript survives concurrent summary");
+        context.Clear(); Check(!context.HasContent, "new session clears context");
     }
     private static void Smoke()
     {

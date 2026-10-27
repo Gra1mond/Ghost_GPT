@@ -47,7 +47,7 @@ public partial class MainWindow
         SendButton = new Button { Content = "Отправить ↗", Background = new SolidColorBrush(Color.FromRgb(128,97,232)) };
         SendButton.Click += async (_, _) => await SendChatAsync();
         row.Children.Add(SendButton);
-        var cancel = new Button { Content = "Остановить" }; cancel.Click += (_, _) => vm.Cancel(); row.Children.Add(cancel);
+        var cancel = new Button { Content = "Остановить" }; cancel.Click += (_, _) => { vm.Cancel(); summaryCancellation?.Cancel(); }; row.Children.Add(cancel);
         var clear = new Button { Content = "Очистить" }; clear.Click += (_, _) => { vm.ClearChat(); if (!vm.Busy) RenderMessages(); }; row.Children.Add(clear);
         Composer.Children.Add(row);
         vm.Messages.CollectionChanged += (_, _) => RenderMessages();
@@ -69,7 +69,7 @@ public partial class MainWindow
     }
     private async Task SendChatAsync()
     {
-        if (vm.Busy) return;
+        if (vm.Busy || conversationBusy) return;
         var prompt = PromptBox.Text.Trim(); if (prompt.Length == 0) prompt = pendingImage is null ? "" : "Проанализируй изображение и помоги с задачей.";
         if (prompt.Length == 0) return;
         try
