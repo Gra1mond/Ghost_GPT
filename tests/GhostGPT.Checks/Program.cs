@@ -6,11 +6,12 @@ using GhostGPT.ViewModels;
 namespace GhostGPT.Checks;
 internal static class Program
 {
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
     private static int count;
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
-        try { Run().GetAwaiter().GetResult(); Smoke(); Console.WriteLine($"PASS: {count} checks"); return 0; }
+        try { Run().GetAwaiter().GetResult(); Smoke(args.Contains("--render")); Console.WriteLine($"PASS: {count} checks"); return 0; }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
     private static void Check(bool condition, string name) { if (!condition) throw new Exception(name); count++; Console.WriteLine("PASS " + name); }
@@ -70,14 +71,36 @@ internal static class Program
         Check(context.Snapshot().Older.Length > 0 && context.Summary == "summary", "new transcript survives concurrent summary");
         context.Clear(); Check(!context.HasContent, "new session clears context");
     }
-    private static void Smoke()
+    private static void Smoke(bool render)
     {
         var app = new GhostGPT.App(); app.InitializeComponent();
-        var window = new GhostGPT.MainWindow();
+        var window = new GhostGPT.MainWindow(new SettingsStore(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GhostGPT-checks", Guid.NewGuid().ToString("N"))));
         Check(window.Content is not null, "WPF view constructs with settings and chat controls");
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        Check(hwnd != IntPtr.Zero, "native window initializes");
+        Check(GetWindowDisplayAffinity(hwnd, out var affinity) && affinity == 0x11, "Windows accepts capture exclusion flag");
         var content = (System.Windows.FrameworkElement)window.Content!;
         content.Measure(new(740, 790)); content.Arrange(new(0, 0, 740, 790)); content.UpdateLayout();
         Check(content.ActualWidth == 740, "WPF layout");
+        foreach (double width in new[] { 480d, 740d, 1200d })
+        {
+            content.Measure(new(width, 790)); content.Arrange(new(0, 0, width, 790)); content.UpdateLayout();
+            Check(content.ActualWidth == width, $"layout width {width}");
+        }
+        if (render)
+        {
+            System.IO.Directory.CreateDirectory("artifacts/previews");
+            foreach (var name in new[] { "ChatPage", "ConversationPage", "SettingsPage" })
+            {
+                var navigation = (System.Windows.Controls.StackPanel)window.FindName("Navigation");
+                int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : 2;
+                ((System.Windows.Controls.Button)navigation.Children[tab]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                content.Measure(new(740, 790)); content.Arrange(new(0, 0, 740, 790)); content.UpdateLayout();
+                var image = new System.Windows.Media.Imaging.RenderTargetBitmap(740, 790, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); image.Render(content);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+                using var stream = System.IO.File.Create($"artifacts/previews/{name}.png"); encoder.Save(stream);
+            }
+        }
         window.Close();
     }
     private sealed class Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler

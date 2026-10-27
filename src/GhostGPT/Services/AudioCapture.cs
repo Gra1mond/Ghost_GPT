@@ -3,7 +3,10 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 namespace GhostGPT.Services;
-public record AudioDevice(string Id, string Name);
+public record AudioDevice(string Id, string Name)
+{
+    public override string ToString() => Name;
+}
 public sealed class AudioCapture : IDisposable
 {
     private readonly List<Source> sources = [];

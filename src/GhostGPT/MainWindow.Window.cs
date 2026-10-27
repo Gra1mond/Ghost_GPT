@@ -4,7 +4,7 @@ using GhostGPT.Services;
 namespace GhostGPT;
 public partial class MainWindow
 {
-    private readonly SettingsStore settingsStore = new();
+    private readonly SettingsStore settingsStore;
     private Settings settings = new();
     private WindowService? windowService;
     private TextBlock captureStatus = new();
@@ -17,7 +17,8 @@ public partial class MainWindow
             windowService = new(this);
             windowService.RestoreBounds(settings);
             captureStatus.Text = windowService.Apply(settings);
-            vm.Status = settingsStore.LoadWarning ?? windowService.Register(settings);
+            var registration = windowService.Register(settings);
+            vm.Status = settingsStore.LoadWarning is { } warning ? warning + " " + registration : registration;
             windowService.Hotkey += HandleHotkey;
         };
         Closing += (_, _) => { SaveSettings(); windowService?.Dispose(); };

@@ -36,7 +36,7 @@ public partial class MainWindow
         };
         SettingsHost.Children.Add(save);
         ConversationPage.Children.Clear();
-        var dock = new DockPanel(); ConversationPage.Children.Add(dock);
+        var dock = new DockPanel(); ConversationPage.Children.Add(new ScrollViewer { Content = dock, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         var top = new StackPanel(); DockPanel.SetDock(top, Dock.Top); dock.Children.Add(top);
         top.Children.Add(new TextBlock { Text = "Слушать. Понимать. Помогать.", FontSize = 25, FontWeight = FontWeights.SemiBold });
         top.Children.Add(new TextBlock { Text = "Выберите источники. Разговор хранится только в памяти.", Foreground = (Brush)FindResource("Muted"), Margin = new(0, 10, 0, 14) });
@@ -46,7 +46,7 @@ public partial class MainWindow
         recordButton = new Button { Content = "Начать запись", Background = new SolidColorBrush(Color.FromRgb(104,80,201)) }; recordButton.Click += (_, _) => { if (audioCapture is null) StartAudio(); else StopAudio(); }; row.Children.Add(recordButton);
         var refresh = new Button { Content = "Обновить устройства" }; refresh.Click += (_, _) => { if (audioCapture is null) RefreshDevices(); }; row.Children.Add(refresh);
         top.Children.Add(recordingStatus);
-        dock.Children.Add(new ScrollViewer { Content = transcriptHost, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        dock.Children.Add(new ScrollViewer { Content = transcriptHost, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 400 });
         RefreshDevices();
         Closing += (_, _) => StopAudio();
         AddConversationActions(top);

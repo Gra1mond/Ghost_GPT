@@ -23,9 +23,9 @@ public sealed class Settings
     public string ScreenshotKey { get; set; } = "S";
     public string PanicKey { get; set; } = "H";
 }
-public sealed class SettingsStore
+public sealed class SettingsStore(string? directory = null)
 {
-    private readonly string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GhostGPT", "settings.json");
+    private readonly string path = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GhostGPT"), "settings.json");
     public string? LoadWarning { get; private set; }
     public Settings Load()
     {

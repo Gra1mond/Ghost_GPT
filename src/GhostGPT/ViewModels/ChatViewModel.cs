@@ -24,6 +24,7 @@ public partial class MainViewModel
         var user = new ChatTurn("user", prompt, image);
         Messages.Add(new("user", image is null ? prompt : prompt + "\n[Прикреплён скриншот]"));
         var answer = new ChatMessage("assistant", ""); Messages.Add(answer);
+        while (Messages.Count > 100) Messages.RemoveAt(0);
         try
         {
             var turns = new List<ChatTurn> { new("system", instruction) };

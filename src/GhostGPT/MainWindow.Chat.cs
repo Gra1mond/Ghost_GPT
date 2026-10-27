@@ -57,7 +57,7 @@ public partial class MainWindow
     }
     private TextBox AddTextSetting(string label, string text)
     {
-        SettingsHost.Children.Add(new TextBlock { Text = label }); var box = new TextBox { Text = text }; SettingsHost.Children.Add(box); return box;
+        SettingsHost.Children.Add(new TextBlock { Text = label }); var box = new TextBox { Text = text, MaxLength = 16000 }; SettingsHost.Children.Add(box); return box;
     }
     private ProviderOptions ChatOptions(bool vision = false) => new(endpointBox.Text.Trim(), keyBox.Password.Trim(), vision && !string.IsNullOrWhiteSpace(visionModelBox.Text) ? visionModelBox.Text.Trim() : modelBox.Text.Trim());
     private void SaveConnection()
