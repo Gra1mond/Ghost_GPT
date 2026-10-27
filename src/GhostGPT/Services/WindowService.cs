@@ -53,6 +53,11 @@ public sealed class WindowService : IDisposable
         window.Height = double.IsFinite(settings.Height) ? Math.Clamp(settings.Height, 400, 1400) : 790;
         window.Left = double.IsFinite(settings.Left) ? settings.Left : 100;
         window.Top = double.IsFinite(settings.Top) ? settings.Top : 100;
+        // A saved window can be larger than the CI desktop or a newly connected monitor.
+        // Normalize its size before capturing fullscreen restore bounds.
+        var work = MonitorBounds(true);
+        window.Width = Math.Max(window.MinWidth, Math.Min(window.Width, work.Width));
+        window.Height = Math.Max(window.MinHeight, Math.Min(window.Height, work.Height));
         ClampToMonitor();
     }
     public void ClampToMonitor()
