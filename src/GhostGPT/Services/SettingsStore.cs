@@ -3,6 +3,9 @@ using System.Text.Json;
 namespace GhostGPT.Services;
 public sealed class Settings
 {
+    public string AudioEndpoint { get; set; } = "https://api.openai.com/v1";
+    public string AudioModel { get; set; } = "";
+    public string ProtectedAudioKey { get; set; } = "";
     public string ChatEndpoint { get; set; } = "https://api.openai.com/v1";
     public string ChatModel { get; set; } = "";
     public string VisionModel { get; set; } = "";

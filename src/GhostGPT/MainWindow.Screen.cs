@@ -10,6 +10,7 @@ public partial class MainWindow
 {
     private readonly StackPanel attachmentPanel = new();
     private bool capturing;
+    private bool panicDuringCapture;
     private RegionWindow? regionWindow;
     private void InitializeScreenshots()
     {
@@ -20,16 +21,16 @@ public partial class MainWindow
     partial void OnScreenshotRequested() => _ = CaptureRegionAsync();
     private async Task CaptureRegionAsync()
     {
-        if (capturing) return; capturing = true; bool wasVisible = IsVisible;
+        if (capturing) return; capturing = true; panicDuringCapture = false; bool wasVisible = IsVisible;
         try
         {
-            Hide(); await Task.Delay(150);
+            Hide(); await Task.Delay(150); if (panicDuringCapture) return;
             regionWindow = new(ScreenCapture.Capture(), settings.ExcludeCapture);
             regionWindow.ShowDialog();
             if (regionWindow.Selection is { } image) { pendingImage = ScreenCapture.Encode(image); OnAttachmentChanged(); vm.Status = "Снимок прикреплён. Проверьте его и нажмите «Отправить»."; Navigate(ChatPage); wasVisible = true; }
         }
         catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
-        finally { regionWindow = null; capturing = false; if (wasVisible) { Show(); Activate(); } }
+        finally { regionWindow = null; capturing = false; if (wasVisible && !panicDuringCapture) { Show(); Activate(); } }
     }
     partial void OnAttachmentChanged()
     {

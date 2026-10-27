@@ -42,6 +42,25 @@ internal static class Program
         var history = MainViewModel.LimitHistory([new("user", "old"), new("assistant", "answer"), new("user", "new"), new("assistant", "yes")], 6).ToArray();
         Check(history.Length == 2 && history[0].Text == "new", "context bounded by recent complete turn");
         var secret = SecretStore.Protect("sample"); Check(secret != "sample" && SecretStore.Unprotect(secret) == "sample", "DPAPI roundtrip");
+        using var queue = new AudioQueue(1);
+        var accepted = new AudioChunk("mic", DateTimeOffset.UtcNow, [1, 2]); var dropped = new AudioChunk("mic", DateTimeOffset.UtcNow, [3, 4]);
+        Check(queue.TryAdd(accepted) && !queue.TryAdd(dropped), "bounded audio queue rejects overflow");
+        Check(dropped.Data.All(b => b == 0), "overflow audio erased");
+        queue.Dispose(); Check(accepted.Data.All(b => b == 0), "stop drains and erases queued audio");
+        using var audioClient = new HttpClient(new Handler(async (request, token) =>
+        {
+            var body = await request.Content!.ReadAsStringAsync(token);
+            Check(request.RequestUri!.AbsolutePath.EndsWith("audio/transcriptions") && body.Contains("speech.wav") && body.Contains("audio/wav"), "multipart audio contract");
+            return new(HttpStatusCode.OK) { Content = new StringContent("{\"text\":\" речь \"}") };
+        }));
+        Check(await new TranscriptionProvider(audioClient).TranscribeAsync(options, [1,2,3], default) == "речь", "transcription response");
+        using var visionClient = new HttpClient(new Handler(async (request, token) =>
+        {
+            var body = await request.Content!.ReadAsStringAsync(token);
+            Check(body.Contains("image_url") && body.Contains("data:image/png;base64,abc"), "vision image attachment contract");
+            return new(HttpStatusCode.OK) { Content = new StringContent("data: [DONE]\n") };
+        }));
+        await foreach (var _ in new CompatibleProvider(visionClient).StreamAsync(options, [new("user", "image", "data:image/png;base64,abc")], default)) { }
     }
     private static void Smoke()
     {
