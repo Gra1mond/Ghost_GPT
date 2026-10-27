@@ -32,6 +32,11 @@ internal static class Program
         var wellflow = ConnectionPresets.Wellflow(options);
         Check(wellflow.Endpoint == "https://api.wellflow.dev/v1" && wellflow.Model == "gpt-5.6-sol" && wellflow.Key == "", "Wellflow preset clears other-provider key");
         Check(ConnectionPresets.Wellflow(wellflow with { Key = "test-key" }).Key == "test-key", "Wellflow preset preserves same-origin key");
+        var mismatch = new ProviderOptions("https://api.openai.com/v1", "wf_test_placeholder", "gpt-5.6-sol");
+        Check(ConnectionPresets.CorrectKnownMismatch(mismatch).Endpoint == ConnectionPresets.WellflowEndpoint, "legacy Wellflow address corrected");
+        Check(ConnectionPresets.CorrectKnownMismatch(options) == options, "custom provider retained");
+        try { CompatibleProvider.ValidateConnection(mismatch); throw new Exception("mismatched key allowed"); }
+        catch (ProviderException) { Check(true, "Wellflow key blocked from OpenAI endpoint"); }
         using var modelsClient = new HttpClient(new Handler((request, _) =>
         {
             Check(request.Method == HttpMethod.Get && request.RequestUri!.AbsolutePath == "/v1/models", "model discovery route");

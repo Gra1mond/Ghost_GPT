@@ -28,6 +28,14 @@ public partial class MainWindow
         keyBox = new PasswordBox(); SettingsHost.Children.Add(keyBox);
         try { keyBox.Password = SecretStore.Unprotect(settings.ProtectedChatKey); }
         catch { vm.Status = "Сохранённый ключ недоступен. Введите API-ключ заново."; }
+        var original = ChatOptions();
+        var corrected = ConnectionPresets.CorrectKnownMismatch(original);
+        if (corrected.Endpoint != original.Endpoint)
+        {
+            endpointBox.Text = corrected.Endpoint; settings.ChatEndpoint = corrected.Endpoint;
+            SettingsHost.Children.Add(new TextBlock { Text = "Обнаружен ключ Wellflow: адрес старой версии исправлен на api.wellflow.dev/v1.", Margin = new(0,0,0,12) });
+            try { settingsStore.Save(settings); } catch { vm.Status = "Адрес исправлен для этой сессии. Сохраните подключение вручную."; }
+        }
         var models = new ComboBox { Visibility = Visibility.Collapsed, ToolTip = "Модели провайдера. Выберите текстовую/vision модель для чата." };
         var loadModels = new Button { Content = "Загрузить модели провайдера", HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0,0,0,10) };
         SettingsHost.Children.Add(loadModels); SettingsHost.Children.Add(models);

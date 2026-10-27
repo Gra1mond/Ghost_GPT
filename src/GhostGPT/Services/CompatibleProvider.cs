@@ -31,6 +31,8 @@ public sealed class CompatibleProvider(HttpClient client) : IChatProvider, IVisi
     }
     public static void ValidateConnection(ProviderOptions options)
     {
+        if (ConnectionPresets.CorrectKnownMismatch(options).Endpoint != options.Endpoint)
+            throw new ProviderException("Это ключ Wellflow, но указан адрес OpenAI. Выберите Wellflow или укажите https://api.wellflow.dev/v1.");
         Endpoint(options.Endpoint, "chat/completions");
         if (string.IsNullOrWhiteSpace(options.Key)) throw new ProviderException("Введите API-ключ в настройках.");
         if (options.Key.Any(char.IsControl)) throw new ProviderException("API-ключ содержит недопустимые символы.");
