@@ -7,7 +7,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel vm = new();
     private bool compact;
     private double expandedHeight = 790;
-    public MainWindow() { InitializeComponent(); DataContext = vm; InitializeWindowFeatures(); InitializeChat(); }
+    public MainWindow() { InitializeComponent(); DataContext = vm; InitializeWindowFeatures(); InitializeChat(); InitializeScreenshots(); }
     private void DragHeader(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is System.Windows.Controls.TextBlock or System.Windows.Controls.Grid) DragMove(); }
     private void ShowChat(object s, RoutedEventArgs e) => Navigate(ChatPage);
     private void ShowConversation(object s, RoutedEventArgs e) => Navigate(ConversationPage);
