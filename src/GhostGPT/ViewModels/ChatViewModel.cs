@@ -16,6 +16,12 @@ public partial class MainViewModel
     public bool Busy { get => busy; private set => Set(ref busy, value); }
     public void Cancel() => requestCancellation?.Cancel();
     public void ClearChat() { if (Busy) return; Messages.Clear(); history.Clear(); }
+    public void RestoreChat(IEnumerable<ChatTurn> turns)
+    {
+        if (Busy) return;
+        ClearChat();
+        foreach (var turn in turns.TakeLast(100)) { Messages.Add(new(turn.Role, turn.Text)); history.Add(turn with { ImageDataUrl = null }); }
+    }
     public async Task SendAsync(IChatProvider provider, ProviderOptions options, string instruction, string prompt, string? image = null, IReadOnlyList<ChatTurn>? context = null)
     {
         if (Busy || string.IsNullOrWhiteSpace(prompt)) return;
@@ -24,6 +30,10 @@ public partial class MainViewModel
         var user = new ChatTurn("user", prompt, image);
         Messages.Add(new("user", image is null ? prompt : prompt + "\n[Прикреплён скриншот]"));
         var answer = new ChatMessage("assistant", ""); Messages.Add(answer);
+        var buffer = new System.Text.StringBuilder();
+        var paint = System.Diagnostics.Stopwatch.StartNew();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        double firstToken = 0;
         while (Messages.Count > 100) Messages.RemoveAt(0);
         try
         {
@@ -34,16 +44,19 @@ public partial class MainViewModel
             Status = "Модель отвечает…";
             await foreach (var chunk in provider.StreamAsync(options, turns, requestCancellation.Token))
             {
-                if (answer.Text.Length + chunk.Length > 100000) throw new ProviderException("Ответ превысил лимит отображения (100 000 символов).");
-                answer.Text += chunk;
+                if (buffer.Length + chunk.Length > 100000) throw new ProviderException("Ответ превысил лимит отображения (100 000 символов).");
+                if (buffer.Length == 0) firstToken = elapsed.Elapsed.TotalSeconds;
+                buffer.Append(chunk);
+                if (paint.ElapsedMilliseconds >= 45 || answer.Text.Length == 0) { answer.Text = buffer.ToString(); paint.Restart(); }
             }
+            answer.Text = buffer.ToString();
             if (string.IsNullOrWhiteSpace(answer.Text)) throw new ProviderException("Модель вернула пустой ответ. Проверьте совместимость API.");
             if (context is null) { history.Add(user with { ImageDataUrl = null }); history.Add(new("assistant", answer.Text)); history.RemoveRange(0, Math.Max(0, history.Count - 40)); }
-            Status = "Ответ готов";
+            Status = $"Ответ готов · первый фрагмент {firstToken:0.0} с · всего {elapsed.Elapsed.TotalSeconds:0.0} с";
         }
         catch (OperationCanceledException) { Status = "Запрос остановлен или истёк тайм-аут"; if (answer.Text.Length == 0) answer.Text = "Ответ отменён."; }
         catch (Exception ex) { Status = FriendlyError(ex); if (answer.Text.Length == 0) answer.Text = Status; }
-        finally { requestCancellation.Dispose(); requestCancellation = null; Busy = false; }
+        finally { if (buffer.Length > 0) answer.Text = buffer.ToString(); requestCancellation.Dispose(); requestCancellation = null; Busy = false; }
     }
     public static IEnumerable<ChatTurn> LimitHistory(IEnumerable<ChatTurn> turns, int budget)
     {

@@ -14,20 +14,28 @@ public partial class MainWindow
     private RegionWindow? regionWindow;
     private void InitializeScreenshots()
     {
-        var capture = new Button { Content = "＋  Скриншот", ToolTip = "Прикрепить область экрана", Background = System.Windows.Media.Brushes.Transparent, Padding = new(6,6,6,6) };
+        var capture = new Button { Content = Icons.Make("plus", "Снимок"), ToolTip = "Снимок всего рабочего стола (все мониторы)", Background = System.Windows.Media.Brushes.Transparent, Padding = new(6,6,6,6) };
         capture.Click += (_, _) => OnScreenshotRequested();
         composerTools.Children.Add(capture); Composer.Children.Insert(0, attachmentPanel);
+        var region = new Button { Content = "Область", ToolTip = "Выбрать область экрана", Background = System.Windows.Media.Brushes.Transparent, Padding = new(6), FontSize = 12 };
+        region.Click += (_, _) => _ = CaptureRegionAsync(true);
+        composerTools.Children.Add(region);
     }
     partial void OnScreenshotRequested() => _ = CaptureRegionAsync();
-    private async Task CaptureRegionAsync()
+    private async Task CaptureRegionAsync(bool selectRegion = false)
     {
         if (capturing) return; capturing = true; panicDuringCapture = false; bool wasVisible = IsVisible;
         try
         {
             Hide(); await Task.Delay(150); if (panicDuringCapture) return;
-            regionWindow = new(ScreenCapture.Capture(), settings.ExcludeCapture);
-            regionWindow.ShowDialog();
-            if (regionWindow.Selection is { } image) { pendingImage = ScreenCapture.Encode(image); OnAttachmentChanged(); vm.Status = "Снимок прикреплён. Проверьте его и нажмите «Отправить»."; Navigate(ChatPage); wasVisible = true; }
+            var desktop = ScreenCapture.Capture();
+            System.Windows.Media.Imaging.BitmapSource? image = desktop.Image;
+            if (selectRegion)
+            {
+                regionWindow = new(desktop, settings.ExcludeCapture);
+                regionWindow.ShowDialog(); image = regionWindow.Selection;
+            }
+            if (image is not null) { pendingImage = ScreenCapture.Encode(image); OnAttachmentChanged(); vm.Status = "Снимок прикреплён. Проверьте его и нажмите «Отправить»."; Navigate(ChatPage); wasVisible = true; }
         }
         catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
         finally { regionWindow = null; capturing = false; if (wasVisible && !panicDuringCapture) { Show(); Activate(); } }

@@ -16,6 +16,14 @@ public partial class MainWindow
     private CancellationTokenSource? modelsCancellation;
     private string? pendingImage;
     private WrapPanel composerTools = null!;
+    private Button stopButton = null!;
+    private void UpdateComposerActions()
+    {
+        bool generating = vm.Busy || conversationBusy;
+        SendButton.Visibility = generating ? Visibility.Collapsed : Visibility.Visible;
+        SendButton.IsEnabled = !generating;
+        stopButton.Visibility = generating ? Visibility.Visible : Visibility.Collapsed;
+    }
     private void InitializeChat()
     {
         provider = new(http);
@@ -68,7 +76,7 @@ public partial class MainWindow
             catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
             finally { modelsCancellation.Dispose(); modelsCancellation = null; loadModels.IsEnabled = true; }
         };
-        instructionBox = AddTextSetting("Инструкция модели / ваш контекст", settings.Instruction); instructionBox.AcceptsReturn = true; instructionBox.MinHeight = 80; instructionBox.MaxHeight = 180;
+        instructionBox = AddTextSetting("Дополнения к INTERVIEW.md / вакансия, стек, опыт", settings.Instruction); instructionBox.AcceptsReturn = true; instructionBox.MinHeight = 80; instructionBox.MaxHeight = 180;
         var actions = new WrapPanel();
         var save = new Button { Content = "Сохранить подключение", Background = new SolidColorBrush(Color.FromRgb(72,72,72)) };
         save.Click += (_, _) => { try { SaveConnection(); vm.Status = "Подключение сохранено. Ключ защищён Windows DPAPI."; } catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); } };
@@ -102,16 +110,19 @@ public partial class MainWindow
         var row = new DockPanel { Margin = new(0,8,0,0) };
         SendButton = new Button { Content = new TextBlock { Text = "↑", Foreground = Brushes.Black, FontSize = 21 }, ToolTip = "Отправить · Enter", Background = Brushes.White, Padding = new(12,4,12,4), Margin = new(0) };
         SendButton.Click += async (_, _) => await SendChatAsync();
-        DockPanel.SetDock(SendButton,Dock.Right);
-        row.Children.Add(SendButton);
-        var cancel = new Button { Content = "■", ToolTip = "Остановить ответ", Background = Brushes.Transparent, Padding = new(12,6,12,6) }; cancel.Click += (_, _) => { vm.Cancel(); summaryCancellation?.Cancel(); }; DockPanel.SetDock(cancel,Dock.Right); row.Children.Add(cancel);
+        var actionSlot = new Grid { Width = 40, Height = 40, VerticalAlignment = VerticalAlignment.Bottom, Margin = new(8,0,0,0) };
+        DockPanel.SetDock(actionSlot,Dock.Right); row.Children.Add(actionSlot);
+        SendButton.Width = SendButton.Height = 40; SendButton.Padding = new(10);
+        actionSlot.Children.Add(SendButton);
+        stopButton = new Button { Content = Controls.Icons.Make("stop"), ToolTip = "Остановить ответ", Background = Brushes.Transparent, Width = 40, Height = 40, Padding = new(10), Margin = new(0), Visibility = Visibility.Collapsed };
+        stopButton.Click += (_, _) => { vm.Cancel(); summaryCancellation?.Cancel(); };
+        actionSlot.Children.Add(stopButton);
         composerTools = new WrapPanel(); row.Children.Add(composerTools);
         Composer.Children.Add(row);
         vm.Messages.CollectionChanged += (_, _) => RenderMessages();
-        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.Busy)) { SendButton.IsEnabled = !vm.Busy; RenderMessages(); } };
-        bool followTail = true;
-        MessageScroll.ScrollChanged += (_, e) => { if (e.ExtentHeightChange == 0) followTail = MessageScroll.ScrollableHeight - MessageScroll.VerticalOffset < 40; else if (followTail) MessageScroll.ScrollToEnd(); };
-        Closing += (_, _) => { vm.Cancel(); checkCancellation?.Cancel(); modelsCancellation?.Cancel(); http.Dispose(); };
+        MessageScroll.ScrollChanged += (_, _) => LatestButton.Visibility = MessageScroll.ScrollableHeight - MessageScroll.VerticalOffset > 80 ? Visibility.Visible : Visibility.Collapsed;
+        vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.Busy)) { UpdateComposerActions(); RenderMessages(); } };
+        Closing += (_, e) => { if (e.Cancel) return; vm.Cancel(); checkCancellation?.Cancel(); modelsCancellation?.Cancel(); http.Dispose(); };
         RenderMessages();
     }
     private TextBox AddTextSetting(string label, string text)
@@ -134,29 +145,47 @@ public partial class MainWindow
         try
         {
             var options = ChatOptions(pendingImage is not null); CompatibleProvider.Validate(options);
+            if (!SaveInstructions()) return;
+            var instructions = InterviewInstructions.Load(instructionBox.Text);
             var image = pendingImage; pendingImage = null; OnAttachmentChanged(); PromptBox.Clear();
-            await vm.SendAsync(provider, options, instructionBox.Text, prompt, image);
+            await vm.SendAsync(provider, options, instructions, prompt, image);
         }
         catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
     }
     partial void OnAttachmentChanged();
+    private readonly Dictionary<ChatMessage, (string Text, FrameworkElement View)> messageViews = [];
     private void RenderMessages()
     {
         MessagesHost.Children.Clear();
+        foreach (var stale in messageViews.Keys.Where(m => !vm.Messages.Contains(m)).ToArray()) messageViews.Remove(stale);
         var messages = compact ? vm.Messages.TakeLast(1) : vm.Messages.AsEnumerable();
         foreach (var message in messages)
         {
-            var panel = new StackPanel { Margin = new(0, 0, 0, 26) };
-            var head = new DockPanel { Margin = new(0, 0, 0, 8) };
+            bool streaming = vm.Busy && message == vm.Messages.LastOrDefault();
+            if (!streaming && messageViews.TryGetValue(message, out var cached) && cached.Text == message.Text) { MessagesHost.Children.Add(cached.View); continue; }
+            var panel = new StackPanel();
+            var head = new DockPanel { Margin = new(0, 0, 0, 16) };
             var copy = new Button { Content = "Копировать", Background = Brushes.Transparent, Padding = new(8, 4, 8, 4), FontSize = 11 }; copy.Click += (_, _) => MarkdownView.Copy(message.Text); DockPanel.SetDock(copy, Dock.Right); head.Children.Add(copy);
-            head.Children.Add(new TextBlock { Text = message.Role == "user" ? "Вы" : "◈  Ghost", Foreground = Brushes.LightGray, FontWeight = FontWeights.SemiBold }); panel.Children.Add(head);
+            var identity = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            identity.Children.Add(new Border { Child = new TextBlock { Text = message.Role == "user" ? "В" : "G", FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Width = 28, Height = 28, CornerRadius = new(9), Background = new SolidColorBrush(message.Role == "user" ? Color.FromArgb(90,100,110,130) : Color.FromArgb(110,130,95,200)), Margin = new(0,0,10,0) });
+            if (message.Role != "user")
+            {
+                identity.Children.Clear();
+                var ghost = GhostVisual.Create(32);
+                ghost.Loaded += (_, _) => GhostVisual.Animate(ghost, streaming && vm.Busy);
+                ghost.Unloaded += (_, _) => GhostVisual.Animate(ghost, false);
+                identity.Children.Add(ghost);
+            }
+            identity.Children.Add(new TextBlock { Text = message.Role == "user" ? "Вы" : streaming ? "Ghost · отвечает…" : "Ghost", Foreground = Brushes.LightGray, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+            head.Children.Add(identity); panel.Children.Add(head);
             if (vm.Busy && message == vm.Messages.LastOrDefault())
             {
-                var text = new TextBlock { LineHeight = 23 }; text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(message.Text)) { Source = message }); panel.Children.Add(text);
+                var text = new TextBox { IsReadOnly = true, Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0), Margin = new(0), TextWrapping = TextWrapping.Wrap, SelectionBrush = Brushes.MediumPurple }; text.SetBinding(TextBox.TextProperty, new System.Windows.Data.Binding(nameof(message.Text)) { Source = message, Mode = System.Windows.Data.BindingMode.OneWay }); panel.Children.Add(text);
             }
             else panel.Children.Add(MarkdownView.Render(message.Text));
-            if (message.Role == "user") MessagesHost.Children.Add(new Border { Child = panel, Background = new SolidColorBrush(Color.FromArgb(65,100,100,100)), CornerRadius = new(16), Padding = new(16,12,16,0), Margin = new(34,0,0,22), HorizontalAlignment = HorizontalAlignment.Right, MaxWidth = 640 });
-            else MessagesHost.Children.Add(panel);
+            bool user = message.Role == "user";
+            MessagesHost.Children.Add(new Border { Child = panel, Background = new SolidColorBrush(user ? Color.FromArgb(48,112,119,140) : Color.FromArgb(34,117,97,155)), BorderBrush = new SolidColorBrush(user ? Color.FromArgb(35,180,185,200) : Color.FromArgb(65,160,135,210)), BorderThickness = new(1), CornerRadius = new(18), Padding = new(18), Margin = new(user ? 32 : 0,0,user ? 0 : 12,20), HorizontalAlignment = HorizontalAlignment.Stretch });
+            if (!streaming) messageViews[message] = (message.Text, (FrameworkElement)MessagesHost.Children[MessagesHost.Children.Count - 1]);
         }
         Welcome.Visibility = vm.Messages.Count == 0 && !compact ? Visibility.Visible : Visibility.Collapsed;
     }

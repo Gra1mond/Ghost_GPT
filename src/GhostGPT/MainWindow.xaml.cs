@@ -13,38 +13,66 @@ public partial class MainWindow : Window
     public MainWindow() : this(new Services.SettingsStore()) { }
     public MainWindow(Services.SettingsStore store)
     {
-        settingsStore = store; InitializeComponent(); DataContext = vm; InitializeWindowFeatures();
+        settingsStore = store; InitializeComponent(); DataContext = vm; InitializeInstructionEditor(); InitializeWindowFeatures();
         int appearanceCount = SettingsHost.Children.Count;
         InitializeChat(); int connectionEnd = SettingsHost.Children.Count;
         InitializeScreenshots(); InitializeAudio();
         OrganizeSettings(appearanceCount, connectionEnd);
-        Navigate(ChatPage); UpdateSidebar();
+        Navigate(ChatPage); UpdateSidebar(); InitializeHistory(); InitializeWorkspaceControls(); InitializeTray();
     }
     private void DragHeader(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
-        for (var node = e.OriginalSource as DependencyObject; node is not null; node = VisualTreeHelper.GetParent(node)) if (node is ButtonBase) return;
+        if (e.GetPosition(WindowSurface).Y > 82) return;
+        for (var node = e.OriginalSource as DependencyObject; node is not null; node = node is FrameworkContentElement content ? content.Parent : VisualTreeHelper.GetParent(node)) if (node is ButtonBase or TextBoxBase or Thumb or Slider) return;
+        if (fullscreen) return;
+        e.Handled = true;
+        if (e.ClickCount == 2) { ToggleMaximize(sender, e); return; }
+        if (WindowState == WindowState.Maximized)
+        {
+            var local = e.GetPosition(this);
+            double ratio = Math.Clamp(local.X / ActualWidth, 0, 1);
+            var screen = PointToScreen(local);
+            var device = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+            var cursor = device.Transform(screen);
+            WindowState = WindowState.Normal;
+            Left = cursor.X - Width * ratio; Top = cursor.Y - Math.Min(local.Y, 40);
+        }
         DragMove();
     }
     private void ResizeWindow(object sender, DragDeltaEventArgs e) { Width = Math.Max(MinWidth, Width + e.HorizontalChange); Height = Math.Max(MinHeight, Height + e.VerticalChange); }
     private void WindowSizeChanged(object sender, SizeChangedEventArgs e) => UpdateSidebar();
+    private bool? sidebarOpen;
+    private double sidebarWidth = 280;
+    private void ResizeSidebar(object sender, DragDeltaEventArgs e)
+    {
+        double available = Math.Max(200, Math.Min(480, ActualWidth - 480));
+        sidebarWidth = Math.Clamp(sidebarWidth + e.HorizontalChange, 200, available);
+        UpdateSidebar();
+    }
+    private void FinishSidebarResize(object sender, DragCompletedEventArgs e) => SaveSettings();
+    private void ToggleSidebar(object sender, RoutedEventArgs e) { sidebarOpen = Sidebar.Visibility != Visibility.Visible; UpdateSidebar(); }
     private void UpdateSidebar()
     {
         if (Sidebar is null || Navigation is null) return;
-        bool narrow = (WindowSurface.ActualWidth > 0 ? WindowSurface.ActualWidth : Width) < 900;
-        SidebarColumn.Width = new GridLength(compact ? 0 : narrow ? 64 : 180);
-        Sidebar.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        Sidebar.Padding = narrow ? new Thickness(6,20,6,16) : new Thickness(12,20,12,16);
-        BrandLabel.Text = narrow ? "◈" : "◈  Ghost"; BrandLabel.Margin = new(8,2,0,24);
-        NewChatButton.Content = narrow ? "＋" : "＋  Новый чат";
-        SidebarNote.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
-        var labels = narrow ? new[] { "○", "≋", "⚙" } : new[] { "○  Чат", "≋  Разговор", "⚙  Настройки" };
-        for (int i=0;i<3;i++) ((Button)Navigation.Children[i]).Content = labels[i];
+
+        bool show = !compact && (sidebarOpen ?? true);
+        SidebarColumn.Width = new GridLength(show ? sidebarWidth : 0);
+        MinWidth = show ? sidebarWidth + 480 : 480;
+        if (Width < MinWidth) Width = MinWidth;
+        Grid.SetColumnSpan(Sidebar, 1);
+        Sidebar.Width = sidebarWidth; Sidebar.HorizontalAlignment = HorizontalAlignment.Left;
+        Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        SidebarResizer.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        SidebarToggle.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        NewChatButton.Content = Controls.Icons.Make("compose", "Новый чат");
+        SearchToggle.Content = Controls.Icons.Make("search"); SidebarToggle.Content = Controls.Icons.Make("sidebar"); SidebarCollapse.Content = Controls.Icons.Make("sidebar");
+        for (int i=0;i<4;i++) ((Button)Navigation.Children[i]).Content = Controls.Icons.Make(new[] { "chat", "audio", "settings", "compose" }[i], new[] { "Текущий чат", "Разговор", "Настройки", "Инструкции" }[i]);
     }
     private void NewChat(object sender, RoutedEventArgs e)
     {
         if (vm.Busy || conversationBusy) { vm.Status = "Сначала остановите текущий ответ."; return; }
-        vm.ClearChat(); pendingImage = null; OnAttachmentChanged(); PromptBox.Clear(); Navigate(ChatPage); RenderMessages(); PromptBox.Focus();
+        PersistChat(); selectedFolder = null; activeChat = Guid.NewGuid(); vm.ClearChat(); RefreshHistory(); pendingImage = null; OnAttachmentChanged(); PromptBox.Clear(); Navigate(ChatPage); RenderMessages(); PromptBox.Focus();
     }
     private void OrganizeSettings(int appearanceCount, int connectionEnd)
     {
@@ -70,14 +98,15 @@ public partial class MainWindow : Window
     private void ShowSettings(object s, RoutedEventArgs e) => Navigate(SettingsPage);
     private void Navigate(UIElement page)
     {
-        ChatPage.Visibility = ConversationPage.Visibility = SettingsPage.Visibility = Visibility.Collapsed; page.Visibility = Visibility.Visible;
+        ChatPage.Visibility = ConversationPage.Visibility = SettingsPage.Visibility = InstructionsPage.Visibility = Visibility.Collapsed; page.Visibility = Visibility.Visible;
         for (int i = 0; i < Navigation.Children.Count; i++)
             ((Button)Navigation.Children[i]).Background = Brushes.Transparent;
-        int selected = page == ChatPage ? 0 : page == ConversationPage ? 1 : 2;
-        ((Button)Navigation.Children[selected]).Background = new SolidColorBrush(Color.FromArgb(100,90,90,90));
-        PageTitle.Text = selected == 0 ? "Чат" : selected == 1 ? "Разговор" : "Настройки";
+        int selected = page == ChatPage ? 0 : page == ConversationPage ? 1 : page == SettingsPage ? 2 : 3;
+        ((Button)Navigation.Children[selected]).Background = new SolidColorBrush(Color.FromArgb(65,100,103,108));
+
+        PageTitle.Text = selected == 0 ? "Чат" : selected == 1 ? "Разговор" : selected == 2 ? "Настройки" : "Инструкции";
     }
-    private void MinimizeWindow(object s, RoutedEventArgs e) { if (windowService?.CanHide == true) Hide(); else WindowState = WindowState.Minimized; }
+    private void MinimizeWindow(object s, RoutedEventArgs e) { if (trayIcon is not null || windowService?.CanHide == true) Hide(); else WindowState = WindowState.Minimized; }
     private void CloseWindow(object s, RoutedEventArgs e) => Close();
     private void ToggleCompact(object s, RoutedEventArgs e)
     {

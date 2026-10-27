@@ -11,6 +11,8 @@ public sealed class WindowService : IDisposable
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Auto)] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct MinMaxInfo { public NativePoint Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize; }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)] private struct MonitorInfo { public int Size; public Rect Monitor, Work; public uint Flags; }
     private readonly Window window;
     private readonly HwndSource source;
@@ -36,7 +38,7 @@ public sealed class WindowService : IDisposable
     {
         foreach (var id in registered) UnregisterHotKey(source.Handle, id);
         registered.Clear(); CanHide = false;
-        var keys = new[] { settings.ToggleKey, settings.AnswerKey, settings.ScreenshotKey, settings.PanicKey };
+        var keys = new[] { settings.ToggleKey, settings.AnswerKey, settings.ScreenshotKey, settings.PanicKey, settings.SendBehindKey };
         List<string> errors = [];
         for (int i = 0; i < keys.Length; i++)
         {
@@ -63,8 +65,38 @@ public sealed class WindowService : IDisposable
         window.Left = Math.Clamp(window.Left, a.X, Math.Max(a.X, b.X - window.Width));
         window.Top = Math.Clamp(window.Top, a.Y, Math.Max(a.Y, b.Y - window.Height));
     }
+    public System.Windows.Rect MonitorBounds(bool work)
+    {
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(MonitorFromWindow(source.Handle, 2), ref info)) return new(0,0,SystemParameters.PrimaryScreenWidth,SystemParameters.PrimaryScreenHeight);
+        var rect = work ? info.Work : info.Monitor;
+        var transform = source.CompositionTarget.TransformFromDevice;
+        return new(transform.Transform(new Point(rect.Left,rect.Top)), transform.Transform(new Point(rect.Right,rect.Bottom)));
+    }
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == 0x24)
+        {
+            var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+            if (GetMonitorInfo(MonitorFromWindow(hwnd, 2), ref info))
+            {
+                var limits = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+                limits.MaxPosition = new() { X = info.Work.Left - info.Monitor.Left, Y = info.Work.Top - info.Monitor.Top };
+                limits.MaxSize = new() { X = info.Work.Right - info.Work.Left, Y = info.Work.Bottom - info.Work.Top };
+                var scale = source.CompositionTarget.TransformToDevice;
+                var minimum = scale.Transform(new Point(window.MinWidth,window.MinHeight));
+                limits.MinTrackSize = new() { X = (int)minimum.X, Y = (int)minimum.Y };
+                Marshal.StructureToPtr(limits,lParam,false); handled = true;
+            }
+        }
+        if (msg == 0x84 && window.WindowState == WindowState.Normal)
+        {
+            long packed = lParam.ToInt64();
+            var point = window.PointFromScreen(new Point((short)(packed & 0xffff),(short)((packed >> 16) & 0xffff)));
+            bool left = point.X < 7, right = point.X >= window.ActualWidth - 7, top = point.Y < 7, bottom = point.Y >= window.ActualHeight - 7;
+            int hit = top ? left ? 13 : right ? 14 : 12 : bottom ? left ? 16 : right ? 17 : 15 : left ? 10 : right ? 11 : 0;
+            if (hit != 0) { handled = true; return new IntPtr(hit); }
+        }
         if (msg == 0x312) { handled = true; Hotkey?.Invoke(wParam.ToInt32()); }
         if (msg == 0x7E) window.Dispatcher.BeginInvoke(ClampToMonitor);
         return IntPtr.Zero;

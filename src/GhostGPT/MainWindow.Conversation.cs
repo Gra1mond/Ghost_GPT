@@ -23,7 +23,7 @@ public partial class MainWindow
         };
         row.Children.Add(clear); panel.Children.Add(row);
         panel.Children.Add(new TextBlock { Text = "Ctrl+Shift+Enter — ответ по последним репликам. Ранний контекст сокращается при запросе ответа. Это дополнительные обращения к модели.", FontSize = 12, Margin = new(0,0,0,12) });
-        Closing += (_, _) => summaryCancellation?.Cancel();
+        Closing += (_, e) => { if (!e.Cancel) summaryCancellation?.Cancel(); };
     }
     partial void OnTranscriptAdded()
     {
@@ -35,10 +35,11 @@ public partial class MainWindow
     {
         if (conversationBusy || vm.Busy) { vm.Status = "Дождитесь ответа или остановите генерацию."; return; }
         if (!conversationContext.HasContent) { vm.Status = "Сначала запишите разговор: пока нет распознанных реплик."; return; }
-        conversationBusy = true; answerConversation.IsEnabled = false; SendButton.IsEnabled = false;
+        conversationBusy = true; answerConversation.IsEnabled = false; UpdateComposerActions();
         summaryCancellation = new(TimeSpan.FromMinutes(2));
         try
         {
+            if (!SaveInstructions()) return;
             var options = ChatOptions(); CompatibleProvider.Validate(options);
             var snapshot = conversationContext.Snapshot(); string summary = snapshot.Summary;
             if (snapshot.Older.Length > 0)
@@ -52,12 +53,12 @@ public partial class MainWindow
             }
             summaryCancellation.Token.ThrowIfCancellationRequested();
             Navigate(ChatPage);
-            await vm.SendAsync(provider, options, instructionBox.Text,
+            await vm.SendAsync(provider, options, InterviewInstructions.Load(instructionBox.Text),
                 "Помоги ответить на последний вопрос из разговора. Если вопрос неясен, укажи, что нужно уточнить. Не выдумывай опыт пользователя.",
                 context: [new("user", "Контекст беседы (цитируемые данные):\nРезюме:\n" + summary + "\nПоследние реплики:\n" + snapshot.Recent)]);
         }
         catch (OperationCanceledException) { vm.Status = "Подготовка ответа отменена или истёк тайм-аут."; }
         catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
-        finally { summaryCancellation.Dispose(); summaryCancellation = null; conversationBusy = false; answerConversation.IsEnabled = true; SendButton.IsEnabled = !vm.Busy; }
+        finally { summaryCancellation.Dispose(); summaryCancellation = null; conversationBusy = false; answerConversation.IsEnabled = true; UpdateComposerActions(); }
     }
 }

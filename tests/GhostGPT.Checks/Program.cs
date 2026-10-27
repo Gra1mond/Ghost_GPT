@@ -11,6 +11,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Contains("--export-icon")) { GhostGPT.Controls.GhostVisual.ExportIcon("src/GhostGPT/Assets/ghost.ico"); return 0; }
         try { Run().GetAwaiter().GetResult(); if (args.Contains("--wellflow-live")) WellflowLive().GetAwaiter().GetResult(); Smoke(args.Contains("--render")); Console.WriteLine($"PASS: {count} checks"); return 0; }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
@@ -69,6 +70,20 @@ internal static class Program
         var history = MainViewModel.LimitHistory([new("user", "old"), new("assistant", "answer"), new("user", "new"), new("assistant", "yes")], 6).ToArray();
         Check(history.Length == 2 && history[0].Text == "new", "context bounded by recent complete turn");
         var secret = SecretStore.Protect("sample"); Check(secret != "sample" && SecretStore.Unprotect(secret) == "sample", "DPAPI roundtrip");
+        var archiveDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GhostGPT-checks", Guid.NewGuid().ToString("N"));
+        var archive = new ChatArchive(archiveDirectory);
+        var saved = new SavedChat { Title = "private test title", Folder = "Собеседования", Turns = [new("user","private test prompt"),new("assistant","reply")] };
+        archive.Save([saved]);
+        Check(archive.Load().Single().Turns[0].Text == "private test prompt", "chat archive encrypted roundtrip");
+        Check(archive.Load().Single().Folder == "Собеседования", "chat folder survives encrypted archive reload");
+        Check(!System.IO.File.ReadAllText(System.IO.Path.Combine(archiveDirectory,"chats.protected")).Contains("private test"), "archive does not store plaintext");
+        archive.Save([]); Check(archive.Load().Count == 0, "deleted chats stay deleted after reload");
+        var restored = new MainViewModel(); restored.RestoreChat(saved.Turns);
+        Check(restored.Messages.Count == 2 && restored.Messages[1].Text == "reply", "chat switching restores messages");
+        var burst = new MainViewModel(); int paints = 0;
+        burst.Messages.CollectionChanged += (_, _) => { if (burst.Messages.LastOrDefault() is { Role: "assistant" } message) message.PropertyChanged += (_, _) => paints++; };
+        await burst.SendAsync(new BurstProvider(), options, "", "test");
+        Check(burst.Messages.Last().Text.Length == 10000 && paints < 100, "burst tokens are batched without losing final text");
         using var queue = new AudioQueue(1);
         var accepted = new AudioChunk("mic", DateTimeOffset.UtcNow, [1, 2]); var dropped = new AudioChunk("mic", DateTimeOffset.UtcNow, [3, 4]);
         Check(queue.TryAdd(accepted) && !queue.TryAdd(dropped), "bounded audio queue rejects overflow");
@@ -100,15 +115,56 @@ internal static class Program
     private static void Smoke(bool render)
     {
         var app = new GhostGPT.App(); app.InitializeComponent();
+        var formatted = (System.Windows.Controls.StackPanel)GhostGPT.Controls.MarkdownView.Render("Пример **ответа** с кодом `value`.");
+        var selectable = (System.Windows.Controls.RichTextBox)formatted.Children[0];
+        selectable.SelectAll();
+        Check(selectable.IsReadOnly && selectable.Selection.Text.Contains("ответа") && selectable.Selection.Text.Contains("value"), "formatted answer supports native text selection");
+        var ghost = GhostGPT.Controls.GhostVisual.Create();
+        GhostGPT.Controls.GhostVisual.Animate(ghost,true);
+        GhostGPT.Controls.GhostVisual.Animate(ghost,false);
+        Check(!ghost.RenderTransform.HasAnimatedProperties && ghost.Source is not null, "ghost animation stops cleanly");
+        var smooth = new GhostGPT.Controls.SmoothScrollViewer { Height = 200, Width = 300, Content = new System.Windows.Controls.Border { Height = 2000 } };
+        smooth.Measure(new(300,200)); smooth.Arrange(new(0,0,300,200)); smooth.UpdateLayout();
+        smooth.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = System.Windows.Input.Mouse.MouseWheelEvent });
+        var frame = new System.Windows.Threading.DispatcherFrame();
+        var stopFrame = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        stopFrame.Tick += (_, _) => { stopFrame.Stop(); frame.Continue = false; };
+        stopFrame.Start(); System.Windows.Threading.Dispatcher.PushFrame(frame);
+        Check(smooth.VerticalOffset > 0 && smooth.VerticalOffset <= smooth.ScrollableHeight, "smooth wheel advances within scroll bounds");
+        smooth.JumpToLatest();
+        Check(Math.Abs(smooth.VerticalOffset - smooth.ScrollableHeight) < 1, "jump to latest reaches bottom immediately");
         var window = new GhostGPT.MainWindow(new SettingsStore(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GhostGPT-checks", Guid.NewGuid().ToString("N"))));
         Check(window.Content is not null, "WPF view constructs with settings and chat controls");
+        Check(((System.Windows.Controls.TextBox)window.FindName("InstructionEditor")).Text.Contains("Основной формат"), "instruction editor loads packaged INTERVIEW.md");
         var hwnd = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         Check(hwnd != IntPtr.Zero, "native window initializes");
         Check(GetWindowDisplayAffinity(hwnd, out var affinity) && affinity == 0x11, "Windows accepts capture exclusion flag");
+        var fullscreenMethod = typeof(GhostGPT.MainWindow).GetMethod("ToggleFullscreen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        double savedWidth = window.Width, savedHeight = window.Height;
+        fullscreenMethod.Invoke(window,null); fullscreenMethod.Invoke(window,null);
+        Check(Math.Abs(window.Width-savedWidth)<1 && Math.Abs(window.Height-savedHeight)<1, "fullscreen restores window geometry");
         var content = (System.Windows.FrameworkElement)window.Content!;
         content.Measure(new(740, 790)); content.Arrange(new(0, 0, 740, 790)); content.UpdateLayout();
         Check(content.ActualWidth == 740, "WPF layout");
         var viewModel = (MainViewModel)window.DataContext;
+        viewModel.Messages.Add(new("user","History smoke question")); viewModel.Messages.Add(new("assistant","History smoke answer"));
+        ((System.Windows.Controls.Button)window.FindName("NewChatButton")).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        var historyHost = (System.Windows.Controls.StackPanel)window.FindName("HistoryHost");
+        Check(historyHost.Children.Count == 1 && viewModel.Messages.Count == 0, "new chat archives previous conversation");
+        ((System.Windows.Controls.Button)((System.Windows.Controls.DockPanel)historyHost.Children[0]).Children[1]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Check(viewModel.Messages.Count == 2 && viewModel.Messages[1].Text == "History smoke answer", "sidebar reopens saved conversation");
+        var search = (System.Windows.Controls.TextBox)window.FindName("HistorySearch");
+        search.Text = "smoke answer";
+        Check(((System.Windows.Controls.StackPanel)window.FindName("HistoryHost")).Children.Count == 1, "history search matches message contents");
+        search.Text = "no-such-conversation-123";
+        Check(((System.Windows.Controls.StackPanel)window.FindName("HistoryHost")).Children.Count == 0, "history search empty state");
+        search.Clear();
+        var toggle = (System.Windows.Controls.Button)window.FindName("SidebarToggle");
+        toggle.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Check(((System.Windows.Controls.Border)window.FindName("Sidebar")).Visibility == System.Windows.Visibility.Collapsed, "sidebar hides explicitly");
+        toggle.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        Check(System.Windows.Controls.Grid.GetColumnSpan((System.Windows.UIElement)window.FindName("Sidebar")) == 1 && ((System.Windows.Controls.ColumnDefinition)window.FindName("SidebarColumn")).Width.Value == 280, "sidebar reserves its own column without overlay");
+        ((System.Windows.Controls.Button)window.FindName("NewChatButton")).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
         viewModel.BackgroundTransparency = .75;
         content.UpdateLayout();
         var surface = (System.Windows.Controls.Border)window.FindName("WindowSurface");
@@ -123,13 +179,19 @@ internal static class Program
             content.Measure(new(width, 790)); content.Arrange(new(0, 0, width, 790)); content.UpdateLayout();
             Check(content.ActualWidth == width, $"layout width {width}");
         }
+        typeof(GhostGPT.MainWindow).GetField("sidebarOpen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(window, null);
         if (render)
         {
+            var sampleChats = (List<SavedChat>)typeof(GhostGPT.MainWindow).GetField("savedChats", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
+            sampleChats.Add(new SavedChat { Title = "Асинхронность и многопоточность", Folder = "Подготовка к собеседованию", Turns = [new("user","Как работает async/await?")] });
+            sampleChats.Add(new SavedChat { Title = "Архитектура сервиса", Folder = "Подготовка к собеседованию", Turns = [new("user","Разбор архитектурной задачи")] });
+            typeof(GhostGPT.MainWindow).GetMethod("RefreshHistory", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window,null);
+            Check(((System.Windows.Controls.StackPanel)window.FindName("FolderTreeHost")).Children.Count == 1, "folder tree groups conversations");
             System.IO.Directory.CreateDirectory("artifacts/previews");
-            foreach (var name in new[] { "ChatPage", "ConversationPage", "SettingsPage" })
+            foreach (var name in new[] { "ChatPage", "ConversationPage", "SettingsPage", "InstructionsPage" })
             {
                 var navigation = (System.Windows.Controls.StackPanel)window.FindName("Navigation");
-                int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : 2;
+                int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : name == "SettingsPage" ? 2 : 3;
                 ((System.Windows.Controls.Button)navigation.Children[tab]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 content.Measure(new(1040, 820)); content.Arrange(new(0, 0, 1040, 820)); content.UpdateLayout();
                 var image = new System.Windows.Media.Imaging.RenderTargetBitmap(1040, 820, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); image.Render(content);
@@ -149,4 +211,9 @@ internal static class Program
     }
     private sealed class Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => send(request, cancellationToken); }
+    private sealed class BurstProvider : IChatProvider
+    {
+        public async IAsyncEnumerable<string> StreamAsync(ProviderOptions options, IReadOnlyList<ChatTurn> turns, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        { await Task.CompletedTask; for (int i=0;i<10000;i++) { cancellationToken.ThrowIfCancellationRequested(); yield return "x"; } }
+    }
 }

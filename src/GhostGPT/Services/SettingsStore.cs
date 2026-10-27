@@ -16,15 +16,19 @@ public sealed class Settings
     public double Width { get; set; } = 1040;
     public double Height { get; set; } = 820;
     public double Opacity { get; set; } = .97;
+    public double SidebarWidth { get; set; } = 280;
+    public List<string> ChatFolders { get; set; } = [];
     public bool AlwaysOnTop { get; set; } = true;
     public bool ExcludeCapture { get; set; } = true;
     public string ToggleKey { get; set; } = "Space";
     public string AnswerKey { get; set; } = "Enter";
     public string ScreenshotKey { get; set; } = "S";
     public string PanicKey { get; set; } = "H";
+    public string SendBehindKey { get; set; } = "Down";
 }
 public sealed class SettingsStore(string? directory = null)
 {
+    public string DirectoryPath => Path.GetDirectoryName(path)!;
     private readonly string path = Path.Combine(directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GhostGPT"), "settings.json");
     public string? LoadWarning { get; private set; }
     public Settings Load()
