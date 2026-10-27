@@ -6,8 +6,8 @@ public sealed class Settings
     public string AudioEndpoint { get; set; } = "https://api.openai.com/v1";
     public string AudioModel { get; set; } = "";
     public string ProtectedAudioKey { get; set; } = "";
-    public string ChatEndpoint { get; set; } = "https://api.openai.com/v1";
-    public string ChatModel { get; set; } = "";
+    public string ChatEndpoint { get; set; } = ConnectionPresets.WellflowEndpoint;
+    public string ChatModel { get; set; } = ConnectionPresets.WellflowModel;
     public string VisionModel { get; set; } = "";
     public string ProtectedChatKey { get; set; } = "";
     public string Instruction { get; set; } = "Отвечай на русском, кратко и по существу. Код оформляй блоками Markdown.";

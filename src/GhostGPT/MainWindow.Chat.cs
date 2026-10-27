@@ -13,11 +13,14 @@ public partial class MainWindow
     private TextBox endpointBox = null!, modelBox = null!, visionModelBox = null!, instructionBox = null!;
     private PasswordBox keyBox = null!;
     private CancellationTokenSource? checkCancellation;
+    private CancellationTokenSource? modelsCancellation;
     private string? pendingImage;
     private void InitializeChat()
     {
         provider = new(http);
         SettingsHost.Children.Add(new TextBlock { Text = "Подключение ИИ", FontSize = 22, Margin = new(0, 24, 0, 16) });
+        var wellflow = new Button { Content = "Wellflow · GPT-5.6 Sol", HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0,0,0,12) };
+        SettingsHost.Children.Add(wellflow);
         endpointBox = AddTextSetting("Адрес API (до /v1 включительно)", settings.ChatEndpoint);
         modelBox = AddTextSetting("Модель чата — точный ID у провайдера", settings.ChatModel);
         visionModelBox = AddTextSetting("Модель изображений — пусто для модели чата", settings.VisionModel);
@@ -25,6 +28,35 @@ public partial class MainWindow
         keyBox = new PasswordBox(); SettingsHost.Children.Add(keyBox);
         try { keyBox.Password = SecretStore.Unprotect(settings.ProtectedChatKey); }
         catch { vm.Status = "Сохранённый ключ недоступен. Введите API-ключ заново."; }
+        var models = new ComboBox { Visibility = Visibility.Collapsed, ToolTip = "Модели провайдера. Выберите текстовую/vision модель для чата." };
+        var loadModels = new Button { Content = "Загрузить модели провайдера", HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0,0,0,10) };
+        SettingsHost.Children.Add(loadModels); SettingsHost.Children.Add(models);
+        void ResetModels() { modelsCancellation?.Cancel(); models.ItemsSource = null; models.Visibility = Visibility.Collapsed; }
+        endpointBox.TextChanged += (_, _) => ResetModels();
+        keyBox.PasswordChanged += (_, _) => ResetModels();
+        wellflow.Click += (_, _) =>
+        {
+            var preset = ConnectionPresets.Wellflow(ChatOptions());
+            endpointBox.Text = preset.Endpoint; modelBox.Text = preset.Model; keyBox.Password = preset.Key;
+            visionModelBox.Clear(); ResetModels();
+            vm.Status = "Выбран Wellflow / gpt-5.6-sol. Введите ключ Wellflow и сохраните подключение.";
+        };
+        models.SelectionChanged += (_, _) => { if (models.SelectedItem is string model) modelBox.Text = model; };
+        loadModels.Click += async (_, _) =>
+        {
+            loadModels.IsEnabled = false; modelsCancellation = new(TimeSpan.FromSeconds(20));
+            try
+            {
+                var available = await provider.ModelsAsync(ChatOptions(), modelsCancellation.Token);
+                modelsCancellation.Token.ThrowIfCancellationRequested();
+                models.ItemsSource = available; models.Visibility = Visibility.Visible;
+                if (available.Contains(modelBox.Text.Trim())) models.SelectedItem = modelBox.Text.Trim();
+                vm.Status = available.Count == 0 ? "Список моделей пуст. Введите ID вручную." : $"Доступно моделей: {available.Count}. Выберите модель чата; поле ID также можно редактировать.";
+            }
+            catch (OperationCanceledException) { vm.Status = "Загрузка моделей отменена или истёк тайм-аут."; }
+            catch (Exception ex) { vm.Status = MainViewModel.FriendlyError(ex); }
+            finally { modelsCancellation.Dispose(); modelsCancellation = null; loadModels.IsEnabled = true; }
+        };
         instructionBox = AddTextSetting("Инструкция модели / ваш контекст", settings.Instruction); instructionBox.AcceptsReturn = true; instructionBox.MinHeight = 80; instructionBox.MaxHeight = 180;
         var actions = new WrapPanel();
         var save = new Button { Content = "Сохранить подключение", Background = new SolidColorBrush(Color.FromRgb(104,80,201)) };
@@ -52,7 +84,7 @@ public partial class MainWindow
         Composer.Children.Add(row);
         vm.Messages.CollectionChanged += (_, _) => RenderMessages();
         vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.Busy)) { SendButton.IsEnabled = !vm.Busy; clear.IsEnabled = !vm.Busy; RenderMessages(); } };
-        Closing += (_, _) => { vm.Cancel(); checkCancellation?.Cancel(); http.Dispose(); };
+        Closing += (_, _) => { vm.Cancel(); checkCancellation?.Cancel(); modelsCancellation?.Cancel(); http.Dispose(); };
         RenderMessages();
     }
     private TextBox AddTextSetting(string label, string text)

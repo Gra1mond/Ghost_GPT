@@ -11,13 +11,34 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        try { Run().GetAwaiter().GetResult(); Smoke(args.Contains("--render")); Console.WriteLine($"PASS: {count} checks"); return 0; }
+        try { Run().GetAwaiter().GetResult(); if (args.Contains("--wellflow-live")) WellflowLive().GetAwaiter().GetResult(); Smoke(args.Contains("--render")); Console.WriteLine($"PASS: {count} checks"); return 0; }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
     }
     private static void Check(bool condition, string name) { if (!condition) throw new Exception(name); count++; Console.WriteLine("PASS " + name); }
+    private static async Task WellflowLive()
+    {
+        var key = Environment.GetEnvironmentVariable("GHOSTGPT_TEST_API_KEY") ?? throw new Exception("Set GHOSTGPT_TEST_API_KEY for the opt-in live check.");
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var provider = new CompatibleProvider(client);
+        var options = new ProviderOptions(ConnectionPresets.WellflowEndpoint, key, ConnectionPresets.WellflowModel);
+        var answer = new StringBuilder();
+        await foreach (var part in provider.StreamAsync(options, [new("user", "Ответь только словом OK.")], timeout.Token)) answer.Append(part);
+        Check(!string.IsNullOrWhiteSpace(answer.ToString()), "live Wellflow gpt-5.6-sol streaming response");
+    }
     private static async Task Run()
     {
         var options = new ProviderOptions("https://example.com/v1", "test-not-a-secret", "test-model");
+        var wellflow = ConnectionPresets.Wellflow(options);
+        Check(wellflow.Endpoint == "https://api.wellflow.dev/v1" && wellflow.Model == "gpt-5.6-sol" && wellflow.Key == "", "Wellflow preset clears other-provider key");
+        Check(ConnectionPresets.Wellflow(wellflow with { Key = "test-key" }).Key == "test-key", "Wellflow preset preserves same-origin key");
+        using var modelsClient = new HttpClient(new Handler((request, _) =>
+        {
+            Check(request.Method == HttpMethod.Get && request.RequestUri!.AbsolutePath == "/v1/models", "model discovery route");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"data\":[{\"id\":\"gpt-6-sol\"},{\"id\":\"gpt-5.6-sol\"},{\"id\":\"gpt-5.6-sol\"},{\"other\":1}]}") });
+        }));
+        var models = await new CompatibleProvider(modelsClient).ModelsAsync(options with { Model = "" }, default);
+        Check(models.SequenceEqual(new[] { "gpt-5.6-sol", "gpt-6-sol" }), "model discovery without preselected model");
         Check(CompatibleProvider.Endpoint(options.Endpoint, "chat/completions").AbsolutePath == "/v1/chat/completions", "endpoint preserves v1");
         foreach (var address in new[] { "http://example.com/v1", "https://user:pass@example.com/v1", "https://example.com?key=x" })
         { try { CompatibleProvider.Endpoint(address, "models"); throw new Exception("accepted invalid address"); } catch (ProviderException) { count++; } }

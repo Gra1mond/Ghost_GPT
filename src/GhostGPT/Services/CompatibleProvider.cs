@@ -26,10 +26,14 @@ public sealed class CompatibleProvider(HttpClient client) : IChatProvider, IVisi
     }
     public static void Validate(ProviderOptions options)
     {
+        ValidateConnection(options);
+        if (string.IsNullOrWhiteSpace(options.Model)) throw new ProviderException("Укажите идентификатор модели в настройках.");
+    }
+    public static void ValidateConnection(ProviderOptions options)
+    {
         Endpoint(options.Endpoint, "chat/completions");
         if (string.IsNullOrWhiteSpace(options.Key)) throw new ProviderException("Введите API-ключ в настройках.");
         if (options.Key.Any(char.IsControl)) throw new ProviderException("API-ключ содержит недопустимые символы.");
-        if (string.IsNullOrWhiteSpace(options.Model)) throw new ProviderException("Укажите идентификатор модели в настройках.");
     }
     public static void EnsureSuccess(HttpStatusCode status)
     {
@@ -73,10 +77,23 @@ public sealed class CompatibleProvider(HttpClient client) : IChatProvider, IVisi
     }
     public async Task CheckAsync(ProviderOptions options, CancellationToken cancellationToken)
     {
-        Validate(options);
+        ValidateConnection(options);
         using var request = new HttpRequestMessage(HttpMethod.Get, Endpoint(options.Endpoint, "models"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Key);
         using var response = await client.SendAsync(request, cancellationToken);
         EnsureSuccess(response.StatusCode);
+    }
+    public async Task<IReadOnlyList<string>> ModelsAsync(ProviderOptions options, CancellationToken cancellationToken)
+    {
+        ValidateConnection(options);
+        using var request = new HttpRequestMessage(HttpMethod.Get, Endpoint(options.Endpoint, "models"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Key);
+        using var response = await client.SendAsync(request, cancellationToken);
+        EnsureSuccess(response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        if (!json.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+            throw new ProviderException("Провайдер вернул неизвестный формат списка моделей. Введите модель вручную.");
+        return data.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetProperty("id").GetString()!).Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().OrderBy(id => id, StringComparer.Ordinal).ToArray();
     }
 }
