@@ -171,7 +171,7 @@ public partial class MainWindow
             if (message.Role != "user")
             {
                 identity.Children.Clear();
-                var ghost = GhostVisual.Create(32);
+                var ghost = GhostVisual.Create(36);
                 ghost.Loaded += (_, _) => GhostVisual.Animate(ghost, streaming && vm.Busy);
                 ghost.Unloaded += (_, _) => GhostVisual.Animate(ghost, false);
                 identity.Children.Add(ghost);
@@ -184,7 +184,7 @@ public partial class MainWindow
             }
             else panel.Children.Add(MarkdownView.Render(message.Text));
             bool user = message.Role == "user";
-            MessagesHost.Children.Add(new Border { Child = panel, Background = new SolidColorBrush(user ? Color.FromArgb(48,112,119,140) : Color.FromArgb(34,117,97,155)), BorderBrush = new SolidColorBrush(user ? Color.FromArgb(35,180,185,200) : Color.FromArgb(65,160,135,210)), BorderThickness = new(1), CornerRadius = new(18), Padding = new(18), Margin = new(user ? 32 : 0,0,user ? 0 : 12,20), HorizontalAlignment = HorizontalAlignment.Stretch });
+            MessagesHost.Children.Add(new Border { Child = panel, Background = new SolidColorBrush(user ? Color.FromArgb(40,132,142,164) : Color.FromArgb(16,150,160,190)), BorderBrush = new SolidColorBrush(user ? Color.FromArgb(40,200,210,230) : Color.FromArgb(30,195,205,230)), BorderThickness = new(1), CornerRadius = new(20), Padding = new(20), Margin = new(user ? 32 : 0,0,user ? 0 : 12,20), HorizontalAlignment = HorizontalAlignment.Stretch });
             if (!streaming) messageViews[message] = (message.Text, (FrameworkElement)MessagesHost.Children[MessagesHost.Children.Count - 1]);
         }
         Welcome.Visibility = vm.Messages.Count == 0 && !compact ? Visibility.Visible : Visibility.Collapsed;

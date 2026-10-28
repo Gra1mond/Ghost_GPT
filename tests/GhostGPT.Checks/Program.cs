@@ -122,7 +122,7 @@ internal static class Program
         var ghost = GhostGPT.Controls.GhostVisual.Create();
         GhostGPT.Controls.GhostVisual.Animate(ghost,true);
         GhostGPT.Controls.GhostVisual.Animate(ghost,false);
-        Check(!ghost.RenderTransform.HasAnimatedProperties && ghost.Source is not null, "ghost animation stops cleanly");
+        Check(ghost.RenderTransform is System.Windows.Media.TransformGroup ghostTransforms && ghostTransforms.Children.All(t => !t.HasAnimatedProperties) && ghost.Source is not null, "ghost animation stops cleanly");
         var smooth = new GhostGPT.Controls.SmoothScrollViewer { Height = 200, Width = 300, Content = new System.Windows.Controls.Border { Height = 2000 } };
         smooth.Measure(new(300,200)); smooth.Arrange(new(0,0,300,200)); smooth.UpdateLayout();
         smooth.RaiseEvent(new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice, Environment.TickCount, -120) { RoutedEvent = System.Windows.Input.Mouse.MouseWheelEvent });

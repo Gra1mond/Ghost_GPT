@@ -10,9 +10,9 @@ public partial class MainViewModel : Observable
         set { if (Set(ref backgroundOpacity, double.IsFinite(value) ? Math.Clamp(value, .15, 1) : .96)) { Changed(nameof(WindowBackground)); Changed(nameof(SidebarBackground)); Changed(nameof(PanelBackground)); Changed(nameof(BackgroundTransparency)); } }
     }
     public double BackgroundTransparency { get => 1 - backgroundOpacity; set => BackgroundOpacity = 1 - value; }
-    public System.Windows.Media.SolidColorBrush SidebarBackground => BackgroundBrush(backgroundOpacity, 25);
+    public System.Windows.Media.SolidColorBrush SidebarBackground => BackgroundBrush(backgroundOpacity * .55, 20);
     public System.Windows.Media.SolidColorBrush WindowBackground => BackgroundBrush(backgroundOpacity, 33);
-    public System.Windows.Media.SolidColorBrush PanelBackground => BackgroundBrush(Math.Min(1, backgroundOpacity + .12), 48);
+    public System.Windows.Media.SolidColorBrush PanelBackground => BackgroundBrush(backgroundOpacity * .65, 48);
     private static System.Windows.Media.SolidColorBrush BackgroundBrush(double opacity, byte shade)
     {
         var brush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb((byte)Math.Round(opacity * 255), shade, shade, shade));
