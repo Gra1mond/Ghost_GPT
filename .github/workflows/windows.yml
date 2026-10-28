@@ -22,3 +22,31 @@ jobs:
           name: GhostGPT-win-x64
           path: artifacts/GhostGPT-win-x64.zip
           retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: GhostGPT-win-x64
+          path: release
+      - name: Publish Windows release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = ([xml](Get-Content src/GhostGPT/GhostGPT.csproj)).Project.PropertyGroup.Version
+          if ($env:RELEASE_TAG -ne "v$version") { throw 'Tag must match application version' }
+          $notes = "docs/RELEASE-$env:RELEASE_TAG.md"
+          if (!(Test-Path $notes)) { throw "Missing release notes: $notes" }
+          $hash = (Get-FileHash release/GhostGPT-win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  GhostGPT-win-x64.zip" | Set-Content release/SHA256SUMS.txt -Encoding utf8
+          gh release create $env:RELEASE_TAG release/GhostGPT-win-x64.zip release/SHA256SUMS.txt --verify-tag --title "Ghost GPT $env:RELEASE_TAG" --notes-file $notes --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

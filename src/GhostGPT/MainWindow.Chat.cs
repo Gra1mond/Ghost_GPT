@@ -161,11 +161,11 @@ public partial class MainWindow
         var messages = compact ? vm.Messages.TakeLast(1) : vm.Messages.AsEnumerable();
         foreach (var message in messages)
         {
-            bool streaming = vm.Busy && message == vm.Messages.LastOrDefault();
+            bool streaming = message.Role == "assistant" && vm.Busy && message == vm.Messages.LastOrDefault();
             if (!streaming && messageViews.TryGetValue(message, out var cached) && cached.Text == message.Text) { MessagesHost.Children.Add(cached.View); continue; }
             var panel = new StackPanel();
             var head = new DockPanel { Margin = new(0, 0, 0, 16) };
-            var copy = new Button { Content = "Копировать", Background = Brushes.Transparent, Padding = new(8, 4, 8, 4), FontSize = 11 }; copy.Click += (_, _) => MarkdownView.Copy(message.Text); DockPanel.SetDock(copy, Dock.Right); head.Children.Add(copy);
+            var copy = new Button { Content = "Копировать", Background = Brushes.Transparent, Padding = new(8, 4, 8, 4), FontSize = 11 }; copy.Click += (_, _) => MarkdownView.Copy(message.Text); DockPanel.SetDock(copy, Dock.Right); if (!streaming) head.Children.Add(copy);
             var identity = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             identity.Children.Add(new Border { Child = new TextBlock { Text = message.Role == "user" ? "В" : "G", FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Width = 28, Height = 28, CornerRadius = new(9), Background = new SolidColorBrush(message.Role == "user" ? Color.FromArgb(90,100,110,130) : Color.FromArgb(110,130,95,200)), Margin = new(0,0,10,0) });
             if (message.Role != "user")
@@ -176,12 +176,9 @@ public partial class MainWindow
                 ghost.Unloaded += (_, _) => GhostVisual.Animate(ghost, false);
                 identity.Children.Add(ghost);
             }
-            identity.Children.Add(new TextBlock { Text = message.Role == "user" ? "Вы" : streaming ? "Ghost · отвечает…" : "Ghost", Foreground = Brushes.LightGray, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+            identity.Children.Add(new TextBlock { Text = message.Role == "user" ? "Вы" : "Ghost", Foreground = Brushes.LightGray, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
             head.Children.Add(identity); panel.Children.Add(head);
-            if (vm.Busy && message == vm.Messages.LastOrDefault())
-            {
-                var text = new TextBox { IsReadOnly = true, Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0), Margin = new(0), TextWrapping = TextWrapping.Wrap, SelectionBrush = Brushes.MediumPurple }; text.SetBinding(TextBox.TextProperty, new System.Windows.Data.Binding(nameof(message.Text)) { Source = message, Mode = System.Windows.Data.BindingMode.OneWay }); panel.Children.Add(text);
-            }
+            if (streaming) panel.Children.Add(new StreamingAnswer(message));
             else panel.Children.Add(MarkdownView.Render(message.Text));
             bool user = message.Role == "user";
             MessagesHost.Children.Add(new Border { Child = panel, Background = new SolidColorBrush(user ? Color.FromArgb(40,132,142,164) : Color.FromArgb(16,150,160,190)), BorderBrush = new SolidColorBrush(user ? Color.FromArgb(40,200,210,230) : Color.FromArgb(30,195,205,230)), BorderThickness = new(1), CornerRadius = new(20), Padding = new(20), Margin = new(user ? 32 : 0,0,user ? 0 : 12,20), HorizontalAlignment = HorizontalAlignment.Stretch });

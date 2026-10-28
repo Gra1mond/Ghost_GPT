@@ -41,7 +41,7 @@ public static class MarkdownView
             {
                 var row = new Grid { Margin = new(0,2,0,6) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-                row.Children.Add(new TextBlock { Text = list.IsOrdered ? $"{number++}." : "•", Foreground = Brushes.MediumPurple, LineHeight = 23 });
+                row.Children.Add(new TextBlock { Text = list.IsOrdered ? $"{number++}." : "•", Foreground = Brushes.MediumPurple, LineHeight = 25 });
                 var text = new StackPanel(); Grid.SetColumn(text,1); row.Children.Add(text);
                 if (item is ContainerBlock items) foreach (var child in items) AddBlock(text,child);
                 panel.Children.Add(row);
@@ -54,11 +54,11 @@ public static class MarkdownView
         }
         else if (block is LeafBlock leaf)
         {
-            var paragraph = new Paragraph { Margin = new(0), LineHeight = 23 };
+            var paragraph = new Paragraph { Margin = new(0), LineHeight = 25 };
             if (block is HeadingBlock h) { paragraph.FontSize = 25 - h.Level * 2; paragraph.FontWeight = FontWeights.SemiBold; }
             if (leaf.Inline is not null) AddInline(paragraph.Inlines, leaf.Inline);
-            var document = new FlowDocument(paragraph) { PagePadding = new(0), FontFamily = new("Segoe UI Variable Text, Segoe UI"), FontSize = 14, Foreground = Brushes.Gainsboro };
-            var selectable = new RichTextBox { Document = document, IsReadOnly = true, IsDocumentEnabled = true, Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0), Margin = new(0,0,0,10), VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, SelectionBrush = Brushes.MediumPurple };
+            var document = new FlowDocument(paragraph) { PagePadding = new(0), FontFamily = new("Segoe UI Variable Text, Segoe UI"), FontSize = 15, Foreground = Brushes.Gainsboro };
+            var selectable = new RichTextBox { Document = document, IsReadOnly = true, IsDocumentEnabled = true, Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(0), Margin = new(0,0,0,14), VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, SelectionBrush = Brushes.MediumPurple };
             var menu = new ContextMenu { Background = new SolidColorBrush(Color.FromRgb(40,40,44)), Foreground = Brushes.Gainsboro };
             menu.Items.Add(new MenuItem { Header = "Копировать выделенное", Command = System.Windows.Input.ApplicationCommands.Copy, CommandTarget = selectable });
             selectable.ContextMenu = menu;
@@ -82,7 +82,7 @@ public static class MarkdownView
             {
                 case LiteralInline literal: target.Add(new Run(literal.Content.ToString())); break;
                 case CodeInline code: target.Add(new Run(code.Content) { FontFamily = new("Consolas"), Background = new SolidColorBrush(Color.FromRgb(53, 47, 72)) }); break;
-                case LineBreakInline: target.Add(new LineBreak()); break;
+                case LineBreakInline line: if (line.IsHard) target.Add(new LineBreak()); else target.Add(new Run(" ")); break;
                 case EmphasisInline emphasis:
                     Span span = emphasis.DelimiterCount >= 2 ? new Bold() : new Italic(); AddInline(span.Inlines, emphasis); target.Add(span); break;
                 case ContainerInline nested: AddInline(target, nested); break;

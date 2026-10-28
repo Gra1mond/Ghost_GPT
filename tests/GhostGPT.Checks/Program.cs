@@ -119,6 +119,15 @@ internal static class Program
         var selectable = (System.Windows.Controls.RichTextBox)formatted.Children[0];
         selectable.SelectAll();
         Check(selectable.IsReadOnly && selectable.Selection.Text.Contains("ответа") && selectable.Selection.Text.Contains("value"), "formatted answer supports native text selection");
+        var liveMessage = new GhostGPT.ViewModels.ChatMessage("assistant", "");
+        var liveView = new GhostGPT.Controls.StreamingAnswer(liveMessage);
+        var liveBody = (System.Windows.Controls.ContentControl)liveView.Children[0];
+        var liveStatus = (System.Windows.Controls.TextBlock)liveView.Children[1];
+        Check(liveBody.Content is null && liveStatus.Text.Contains("Ожидаю"), "streaming answer shows waiting state before first token");
+        liveMessage.Text = "## Решение\n\n**Ответ**\n\n```csharp\nvar value = 1;";
+        typeof(GhostGPT.Controls.StreamingAnswer).GetMethod("Refresh", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(liveView, null);
+        var liveBlocks = (System.Windows.Controls.StackPanel)liveBody.Content!;
+        Check(liveBlocks.Children.Count == 3 && liveBlocks.Children[2] is System.Windows.Controls.Border && liveStatus.Text.Contains("поступает"), "streaming Markdown formats heading and unfinished code fence");
         var ghost = GhostGPT.Controls.GhostVisual.Create();
         GhostGPT.Controls.GhostVisual.Animate(ghost,true);
         GhostGPT.Controls.GhostVisual.Animate(ghost,false);
