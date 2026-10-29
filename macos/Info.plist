@@ -5,10 +5,10 @@
 <key>CFBundleIdentifier</key><string>dev.ghostgpt.mac</string>
 <key>CFBundleName</key><string>Ghost GPT</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>0.1.1</string>
+<key>CFBundleVersion</key><string>2</string>
 <key>CFBundleIconFile</key><string>GhostGPT</string>
-<key>LSMinimumSystemVersion</key><string>15.0</string>
+<key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Ghost GPT записывает микрофон по вашей команде и отправляет фрагменты выбранному API распознавания речи.</string>

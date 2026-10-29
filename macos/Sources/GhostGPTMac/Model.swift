@@ -217,7 +217,12 @@ enum DesktopCapture {
             let config = SCStreamConfiguration(); let bounds = CGDisplayBounds(display.displayID)
             config.width = max(1, Int(bounds.width * scale)); config.height = max(1, Int(bounds.height * scale)); config.showsCursor = false
             let filter = SCContentFilter(display: display, excludingApplications: own, exceptingWindows: [])
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            let image: CGImage
+            if #available(macOS 14, *), !MacCompatibility.forceLegacy {
+                image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            } else {
+                image = try await LegacyScreenshot.capture(filter: filter, configuration: config)
+            }
             context.draw(image, in: CGRect(x: (bounds.minX - union.minX) * scale, y: (union.maxY - bounds.maxY) * scale, width: bounds.width * scale, height: bounds.height * scale))
         }
         guard let image = context.makeImage(), let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]), png.count < 10_000_000 else { throw AppError(message: "Не удалось подготовить снимок.") }

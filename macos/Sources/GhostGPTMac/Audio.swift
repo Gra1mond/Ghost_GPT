@@ -21,50 +21,112 @@ enum Wave {
         u32(UInt32(rate)); u32(UInt32(rate * 2)); u16(2); u16(16); text("data"); u32(UInt32(pcm.count)); data.append(pcm); return data
     }
 }
-final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
+enum MicrophoneDevices {
+    static var all: [AVCaptureDevice] {
+        if #available(macOS 14, *) {
+            return AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external], mediaType: .audio, position: .unspecified).devices
+        }
+        return AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified).devices
+    }
+}
+final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     private var stream: SCStream?
+    private var microphone: AVCaptureSession?
+    private var microphoneError: NSObjectProtocol?
     private let queue = DispatchQueue(label: "dev.ghostgpt.audio")
+    private let sessionQueue = DispatchQueue(label: "dev.ghostgpt.microphone-session")
     private var buffers: [String: Data] = [:]
+    private var rates: [String: Int] = [:]
     private var running = false
     var received: ((AudioPacket) -> Void)?
     var failed: ((String) -> Void)?
+
     func start(mic: Bool, system: Bool, device: String) async throws {
-        guard mic || system else { throw AppError(message: "Р’С‹Р±РµСЂРёС‚Рµ РёСЃС‚РѕС‡РЅРёРє Р·РІСѓРєР°.") }
+        guard mic || system else { throw AppError(message: "Выберите источник звука.") }
         if mic {
             let allowed = await AVCaptureDevice.requestAccess(for: .audio)
-            guard allowed else { throw AppError(message: "Р Р°Р·СЂРµС€РёС‚Рµ РґРѕСЃС‚СѓРї Рє РјРёРєСЂРѕС„РѕРЅСѓ РІ РЅР°СЃС‚СЂРѕР№РєР°С… macOS.") }
+            guard allowed else { throw AppError(message: "Разрешите доступ к микрофону в настройках macOS.") }
         }
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first else { throw AppError(message: "РќРµС‚ РґРѕСЃС‚СѓРїРЅРѕРіРѕ СЌРєСЂР°РЅР° РґР»СЏ Р·Р°С…РІР°С‚Р° Р·РІСѓРєР°.") }
-        let own = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
-        let filter = SCContentFilter(display: display, excludingApplications: own, exceptingWindows: [])
-        let config = SCStreamConfiguration()
-        config.width = 2; config.height = 2; config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
-        config.capturesAudio = system; config.excludesCurrentProcessAudio = true
-        config.sampleRate = 16000; config.channelCount = 1
-        config.captureMicrophone = mic
-        if !device.isEmpty { config.microphoneCaptureDeviceID = device }
-        let capture = SCStream(filter: filter, configuration: config, delegate: self)
-        if system { try capture.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue) }
-        if mic { try capture.addStreamOutput(self, type: .microphone, sampleHandlerQueue: queue) }
-        queue.sync { buffers.removeAll(); running = true }
-        do { try await capture.startCapture(); stream = capture }
-        catch { queue.sync { running = false; buffers.removeAll() }; throw error }
+        queue.sync { buffers.removeAll(); rates.removeAll(); running = true }
+        do {
+            // Mic-only mode does not request screen-recording permission.
+            if mic { try await startMicrophone(device: device) }
+            if system {
+                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                guard let display = content.displays.first else { throw AppError(message: "Нет доступного экрана для захвата системного звука.") }
+                let own = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
+                let filter = SCContentFilter(display: display, excludingApplications: own, exceptingWindows: [])
+                let config = SCStreamConfiguration()
+                config.width = 2; config.height = 2; config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+                config.capturesAudio = true; config.excludesCurrentProcessAudio = true
+                config.sampleRate = 16000; config.channelCount = 1
+                let capture = SCStream(filter: filter, configuration: config, delegate: self)
+                try capture.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
+                stream = capture
+                try await capture.startCapture()
+            }
+        } catch { await stop(); throw error }
+    }
+    private func startMicrophone(device: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            sessionQueue.async {
+                do {
+                    let selected = device.isEmpty ? AVCaptureDevice.default(for: .audio) : MicrophoneDevices.all.first { $0.uniqueID == device }
+                    guard let selected else { throw AppError(message: "Выбранный микрофон отключён или недоступен.") }
+                    let session = AVCaptureSession()
+                    session.beginConfiguration()
+                    let input = try AVCaptureDeviceInput(device: selected)
+                    let output = AVCaptureAudioDataOutput()
+                    output.audioSettings = [AVFormatIDKey: kAudioFormatLinearPCM,
+                        AVLinearPCMIsFloatKey: true, AVLinearPCMBitDepthKey: 32,
+                        AVNumberOfChannelsKey: 1, AVSampleRateKey: 16000]
+                    guard session.canAddInput(input), session.canAddOutput(output) else {
+                        session.commitConfiguration(); throw AppError(message: "Не удалось настроить микрофон.")
+                    }
+                    session.addInput(input); session.addOutput(output)
+                    output.setSampleBufferDelegate(self, queue: self.queue)
+                    session.commitConfiguration()
+                    self.microphone = session
+                    self.microphoneError = NotificationCenter.default.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: nil) { [weak self] _ in
+                        self?.failed?("Микрофон недоступен. Проверьте подключение и разрешение macOS.")
+                    }
+                    session.startRunning()
+                    guard session.isRunning else { throw AppError(message: "Микрофон не начал запись.") }
+                    continuation.resume()
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
     }
     func stop() async {
         let capture = stream; stream = nil
-        queue.sync { running = false; for key in Array(buffers.keys) { let count = buffers[key]?.count ?? 0; buffers[key]?.resetBytes(in: 0..<count) }; buffers.removeAll() }
+        queue.sync {
+            running = false
+            for key in Array(buffers.keys) { let count = buffers[key]?.count ?? 0; buffers[key]?.resetBytes(in: 0..<count) }
+            buffers.removeAll(); rates.removeAll()
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async {
+                if let observer = self.microphoneError { NotificationCenter.default.removeObserver(observer) }
+                self.microphoneError = nil
+                self.microphone?.stopRunning(); self.microphone = nil
+                continuation.resume()
+            }
+        }
         try? await capture?.stopCapture()
     }
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         queue.async { self.running = false; self.buffers.removeAll() }
-        failed?("Р—Р°С…РІР°С‚ Р°СѓРґРёРѕ РѕСЃС‚Р°РЅРѕРІР»РµРЅ. РџСЂРѕРІРµСЂСЊС‚Рµ СѓСЃС‚СЂРѕР№СЃС‚РІР° Рё СЂР°Р·СЂРµС€РµРЅРёСЏ macOS.")
+        failed?("Захват системного звука остановлен. Проверьте разрешения macOS.")
     }
     func stream(_ stream: SCStream, didOutputSampleBuffer sample: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard running, sample.isValid, type == .audio || type == .microphone,
-              let description = sample.formatDescription,
+        guard type == .audio else { return }; consume(sample, source: "Звук компьютера")
+    }
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        consume(sampleBuffer, source: "Микрофон")
+    }
+    private func consume(_ sample: CMSampleBuffer, source: String) {
+        guard running, sample.isValid, let description = sample.formatDescription,
               let format = CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee else { return }
-        let source = type == .microphone ? "РњРёРєСЂРѕС„РѕРЅ" : "Р—РІСѓРє РєРѕРјРїСЊСЋС‚РµСЂР°"
         var size = 0
         var block: CMBlockBuffer?
         CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sample, bufferListSizeNeededOut: &size, bufferListOut: nil, bufferListSize: 0, blockBufferAllocator: nil, blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: nil)
@@ -77,6 +139,8 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate {
         let frames = CMSampleBufferGetNumSamples(sample)
         let rate = Int(format.mSampleRate)
         guard rate > 0, format.mFormatID == kAudioFormatLinearPCM else { return }
+        if let previous = rates[source], previous != rate { buffers[source]?.removeAll() }
+        rates[source] = rate
         var pcm = Data(capacity: frames * 2); var peak: Float = 0
         for frame in 0..<frames {
             var value: Float = 0; var channels = 0

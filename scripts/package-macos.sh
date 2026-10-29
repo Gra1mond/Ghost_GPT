@@ -30,8 +30,21 @@ iconutil -c icns "$icons" -o "$app/Contents/Resources/GhostGPT.icns"
 codesign --force --deep --sign - "$app"
 codesign --verify --deep --strict "$app"
 file "$app/Contents/MacOS/GhostGPT"
+# Verify the deployment target of the actual Mach-O binary, not just Info.plist.
+python3 - "$app" <<'PY'
+import plistlib,re,subprocess,sys
+from pathlib import Path
+app=Path(sys.argv[1])
+info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
+assert info['LSMinimumSystemVersion']=='13.0', info
+build=subprocess.check_output(['xcrun','vtool','-show-build',str(app/'Contents/MacOS/GhostGPT')],text=True)
+versions=re.findall(r'minos\s+(\d+(?:\.\d+)*)',build)
+assert versions and all(v in ('13.0','13.0.0') for v in versions), build
+print('Verified minimum macOS 13.0 in Info.plist and Mach-O')
+PY
 # Smoke-check AppKit construction; no API calls or microphone capture.
 "$app/Contents/MacOS/GhostGPT" --smoke-test --snapshot "$root/artifacts/macos-$arch/Chat.png"
+GHOSTGPT_FORCE_MACOS13=1 "$app/Contents/MacOS/GhostGPT" --smoke-test --snapshot "$root/artifacts/macos-$arch/Chat-macOS13.png"
 cp "$root/docs/MACOS.md" "$root/artifacts/macos-$arch/README-macOS.md"
 mkdir -p "$root/artifacts/downloads"
-ditto -c -k --sequesterRsrc --keepParent "$app" "$root/artifacts/downloads/GhostGPT-macos-$arch.zip"
+ditto -c -k --sequesterRsrc --keepParent "$app" "$root/artifacts/downloads/GhostGPT-macos13-$arch.zip"
