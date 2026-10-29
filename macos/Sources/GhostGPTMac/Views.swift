@@ -153,7 +153,7 @@ struct MainView: View {
                             ForEach(model.compact ? Array(model.messages.suffix(1)) : model.messages) { message in ChatBubble(message: message, busy: model.busy && message.role == "assistant" && message.id == model.messages.last?.id) }
                             Color.clear.frame(height: 1).id("bottom")
                         }.padding(.vertical, 12)
-                    }.onScrollPhaseChange { _, phase in if phase == .interacting { follow = false } }
+                    }.modifier(ManualScrollObserver { follow = false })
                         .simultaneousGesture(DragGesture().onChanged { _ in follow = false })
                         .onChange(of: model.messages.last?.text) { _ in if follow { proxy.scrollTo("bottom", anchor: .bottom) } }
                         .onChange(of: model.messages.count) { _ in if follow { proxy.scrollTo("bottom", anchor: .bottom) } }
@@ -211,12 +211,12 @@ struct MainView: View {
             HStack { Toggle("Микрофон", isOn: $model.useMicrophone); Toggle("Звук компьютера", isOn: $model.useSystem) }.disabled(model.recording || model.startingAudio)
             Picker("Микрофон", selection: $model.preferences.microphone) {
                 Text("По умолчанию").tag("")
-                ForEach(AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices, id: \.uniqueID) { device in Text(device.localizedName).tag(device.uniqueID) }
+                ForEach(MicrophoneDevices.all, id: \.uniqueID) { device in Text(device.localizedName).tag(device.uniqueID) }
             }.disabled(model.recording || model.startingAudio)
             Text("Системный источник — звук приложений Mac. Отдельное устройство вывода не выбирается.").font(.caption).foregroundStyle(.secondary)
             Toggle("Аудиофрагменты будут отправляться моему провайдеру транскрибации. Участники разговора предупреждены.", isOn: $model.consent).font(.caption).disabled(model.recording)
             HStack {
-                Button(model.recording ? "Остановить запись" : model.startingAudio ? "Подключение…" : "Начать запись") { if model.recording { model.stopAudio() } else { model.startAudio() } }.disabled(model.startingAudio)
+                Button(model.recording ? "Остановить запись" : model.startingAudio ? "Подключение…" : model.stoppingAudio ? "Остановка…" : "Начать запись") { if model.recording { model.stopAudio() } else { model.startAudio() } }.disabled(model.startingAudio || model.stoppingAudio)
                 Button("Новая сессия") { model.stopAudio(); model.transcript = []; model.summary = "" }
                 Spacer(); if model.recording { Label("Запись", systemImage: "record.circle.fill").foregroundStyle(.red) }
             }

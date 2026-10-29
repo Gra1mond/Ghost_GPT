@@ -1,7 +1,7 @@
 name: macOS
 on:
   push:
-    branches: [main, 'codex/macos-port']
+    branches: [main, 'codex/macos-port', 'codex/macos13-release']
     tags: ['mac-v*']
   pull_request:
     paths: ['macos/**', 'scripts/package-macos.sh', '.github/workflows/macos.yml', 'INTERVIEW.md']
@@ -29,12 +29,12 @@ jobs:
         run: bash scripts/package-macos.sh '${{ matrix.arch }}'
       - uses: actions/upload-artifact@v4
         with:
-          name: GhostGPT-macos-${{ matrix.arch }}
+          name: GhostGPT-macos13-${{ matrix.arch }}
           path: artifacts/downloads/*.zip
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-preview-${{ matrix.arch }}
-          path: artifacts/macos-${{ matrix.arch }}/Chat.png
+          path: artifacts/macos-${{ matrix.arch }}/Chat*.png
   release:
     if: startsWith(github.ref, 'refs/tags/mac-v')
     needs: build
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: GhostGPT-macos-*
+          pattern: GhostGPT-macos13-*
           merge-multiple: true
           path: downloads
       - name: Publish separate macOS prerelease
@@ -56,4 +56,4 @@ jobs:
           cd downloads
           sha256sum *.zip > SHA256SUMS.txt
           cd ..
-          gh release create "$RELEASE_TAG" downloads/* --verify-tag --title "Ghost GPT macOS $RELEASE_TAG" --notes-file docs/MACOS.md --prerelease --latest=false
+          gh release create "$RELEASE_TAG" downloads/* --verify-tag --title "Ghost GPT macOS 13+ $RELEASE_TAG" --notes-file docs/MACOS.md --prerelease --latest=false

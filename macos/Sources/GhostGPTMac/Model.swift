@@ -17,6 +17,7 @@ import ScreenCaptureKit
     @Published var busy = false
     @Published var recording = false
     @Published var startingAudio = false
+    @Published var stoppingAudio = false
     @Published var screenshot: Data?
     @Published var screenshotBusy = false
     @Published var compact = false
@@ -115,7 +116,7 @@ import ScreenCaptureKit
         }
     }
     func startAudio() {
-        guard !recording, !startingAudio else { return }
+        guard !recording, !startingAudio, !stoppingAudio else { return }
         guard consent else { status = "Подтвердите передачу аудио выбранному провайдеру."; return }
         do { _ = try API.request(endpoint: preferences.audioEndpoint, key: audioKey, route: "audio/transcriptions"); if preferences.audioModel.isEmpty { throw AppError(message: "Укажите модель распознавания речи.") } } catch { status = error.localizedDescription; return }
         startingAudio = true
@@ -136,7 +137,9 @@ import ScreenCaptureKit
     }
     func stopAudio() {
         sessionID = UUID(); recording = false; audioWorker?.cancel(); audioWorker = nil; audioQueue.clear(); summarizer?.cancel(); summarizer = nil
-        Task { await audio.stop() }
+        guard !stoppingAudio else { return }
+        stoppingAudio = true
+        Task { await audio.stop(); stoppingAudio = false }
     }
     func runAudioQueue(session: UUID) {
         guard audioWorker == nil else { return }
@@ -217,7 +220,12 @@ enum DesktopCapture {
             let config = SCStreamConfiguration(); let bounds = CGDisplayBounds(display.displayID)
             config.width = max(1, Int(bounds.width * scale)); config.height = max(1, Int(bounds.height * scale)); config.showsCursor = false
             let filter = SCContentFilter(display: display, excludingApplications: own, exceptingWindows: [])
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            let image: CGImage
+            if #available(macOS 14, *), !MacCompatibility.forceLegacy {
+                image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            } else {
+                image = try await LegacyScreenshot.capture(filter: filter, configuration: config)
+            }
             context.draw(image, in: CGRect(x: (bounds.minX - union.minX) * scale, y: (union.maxY - bounds.maxY) * scale, width: bounds.width * scale, height: bounds.height * scale))
         }
         guard let image = context.makeImage(), let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]), png.count < 10_000_000 else { throw AppError(message: "Не удалось подготовить снимок.") }

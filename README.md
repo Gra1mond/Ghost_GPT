@@ -21,7 +21,7 @@ Windows AI-помощник с собственным API-ключом, плав
 
 ## Версия для macOS
 
-Отдельный нативный порт для macOS 15+ (Apple Silicon и Intel): [возможности, установка и отличия](docs/MACOS.md). macOS-релизы имеют префикс `mac-v` и не заменяют Windows Latest.
+Отдельный нативный порт для macOS 13+ (Apple Silicon и Intel): [возможности, установка и отличия](docs/MACOS.md). macOS-релизы имеют префикс `mac-v` и не заменяют Windows Latest.
 
 ## Подключение прямо в приложении
 
