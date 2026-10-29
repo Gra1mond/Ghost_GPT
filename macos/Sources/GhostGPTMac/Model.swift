@@ -17,6 +17,7 @@ import ScreenCaptureKit
     @Published var busy = false
     @Published var recording = false
     @Published var startingAudio = false
+    @Published var stoppingAudio = false
     @Published var screenshot: Data?
     @Published var screenshotBusy = false
     @Published var compact = false
@@ -115,7 +116,7 @@ import ScreenCaptureKit
         }
     }
     func startAudio() {
-        guard !recording, !startingAudio else { return }
+        guard !recording, !startingAudio, !stoppingAudio else { return }
         guard consent else { status = "Подтвердите передачу аудио выбранному провайдеру."; return }
         do { _ = try API.request(endpoint: preferences.audioEndpoint, key: audioKey, route: "audio/transcriptions"); if preferences.audioModel.isEmpty { throw AppError(message: "Укажите модель распознавания речи.") } } catch { status = error.localizedDescription; return }
         startingAudio = true
@@ -136,7 +137,9 @@ import ScreenCaptureKit
     }
     func stopAudio() {
         sessionID = UUID(); recording = false; audioWorker?.cancel(); audioWorker = nil; audioQueue.clear(); summarizer?.cancel(); summarizer = nil
-        Task { await audio.stop() }
+        guard !stoppingAudio else { return }
+        stoppingAudio = true
+        Task { await audio.stop(); stoppingAudio = false }
     }
     func runAudioQueue(session: UUID) {
         guard audioWorker == nil else { return }

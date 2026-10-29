@@ -87,7 +87,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, AVCaptureA
                     output.setSampleBufferDelegate(self, queue: self.queue)
                     session.commitConfiguration()
                     self.microphone = session
-                    self.microphoneError = NotificationCenter.default.addObserver(forName: .AVCaptureSessionRuntimeError, object: session, queue: nil) { [weak self] _ in
+                    self.microphoneError = NotificationCenter.default.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: nil) { [weak self] _ in
                         self?.failed?("Микрофон недоступен. Проверьте подключение и разрешение macOS.")
                     }
                     session.startRunning()

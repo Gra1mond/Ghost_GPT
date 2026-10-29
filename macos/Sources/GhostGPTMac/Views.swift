@@ -216,7 +216,7 @@ struct MainView: View {
             Text("Системный источник — звук приложений Mac. Отдельное устройство вывода не выбирается.").font(.caption).foregroundStyle(.secondary)
             Toggle("Аудиофрагменты будут отправляться моему провайдеру транскрибации. Участники разговора предупреждены.", isOn: $model.consent).font(.caption).disabled(model.recording)
             HStack {
-                Button(model.recording ? "Остановить запись" : model.startingAudio ? "Подключение…" : "Начать запись") { if model.recording { model.stopAudio() } else { model.startAudio() } }.disabled(model.startingAudio)
+                Button(model.recording ? "Остановить запись" : model.startingAudio ? "Подключение…" : model.stoppingAudio ? "Остановка…" : "Начать запись") { if model.recording { model.stopAudio() } else { model.startAudio() } }.disabled(model.startingAudio || model.stoppingAudio)
                 Button("Новая сессия") { model.stopAudio(); model.transcript = []; model.summary = "" }
                 Spacer(); if model.recording { Label("Запись", systemImage: "record.circle.fill").foregroundStyle(.red) }
             }
