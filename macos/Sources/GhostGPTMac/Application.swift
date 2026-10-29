@@ -23,6 +23,9 @@ import Carbon
             model.chats = [sample]; model.selected = sample.id
         }
         window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1000, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        // Best-effort legacy capture exclusion; ScreenCaptureKit may ignore it.
+        // Apply before the window is first shown, including on macOS 13 Ventura.
+        window.sharingType = .none
         window.title = "Ghost GPT"; window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
         window.contentMinSize = NSSize(width: model.preferences.sidebarWidth + 475, height: 420); window.isMovableByWindowBackground = true; window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenPrimary]; window.level = .floating; window.delegate = self
