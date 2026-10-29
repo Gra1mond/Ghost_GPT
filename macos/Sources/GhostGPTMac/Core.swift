@@ -144,7 +144,7 @@ enum API {
             if Date().timeIntervalSince(lastPaint) > 0.08 || chunk.finished {
                 if !buffer.isEmpty { await receive(buffer); buffer = "" }; lastPaint = Date()
             }
-            if line.trimmingCharacters(in: .whitespaces) == "data: [DONE]" { break }
+            if chunk.finished { break }
         }
         } catch {
             if !buffer.isEmpty { await receive(buffer) }

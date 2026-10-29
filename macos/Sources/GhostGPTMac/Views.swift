@@ -153,7 +153,8 @@ struct MainView: View {
                             ForEach(model.compact ? Array(model.messages.suffix(1)) : model.messages) { message in ChatBubble(message: message, busy: model.busy && message.role == "assistant" && message.id == model.messages.last?.id) }
                             Color.clear.frame(height: 1).id("bottom")
                         }.padding(.vertical, 12)
-                    }.simultaneousGesture(DragGesture().onChanged { _ in follow = false })
+                    }.onScrollPhaseChange { _, phase in if phase == .interacting { follow = false } }
+                        .simultaneousGesture(DragGesture().onChanged { _ in follow = false })
                         .onChange(of: model.messages.last?.text) { _ in if follow { proxy.scrollTo("bottom", anchor: .bottom) } }
                         .onChange(of: model.messages.count) { _ in if follow { proxy.scrollTo("bottom", anchor: .bottom) } }
                     Button { follow = true; proxy.scrollTo("bottom", anchor: .bottom) } label: { Image(systemName: "arrow.down").padding(8) }.buttonStyle(.bordered).help("К последнему сообщению").padding(8)

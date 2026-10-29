@@ -18,6 +18,10 @@ import Carbon
     var keys: [EventHotKeyRef] = []
     var handler: EventHandlerRef?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--smoke-test") {
+            let sample = Chat(title: "Асинхронность и параллелизм", messages: [Message(role: "user", text: "Чем асинхронный код отличается от параллельного?"), Message(role: "assistant", text: "Асинхронность позволяет **не блокировать ожидание**, а параллелизм — выполнять несколько вычислений одновременно.\n\n## Пример\n\n```swift\nlet result = try await fetchAnswer()\nprint(result)\n```\n\nОдин подход не исключает другой.")])
+            model.chats = [sample]; model.selected = sample.id
+        }
         window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1000, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "Ghost GPT"; window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
         window.contentMinSize = NSSize(width: model.preferences.sidebarWidth + 475, height: 420); window.isMovableByWindowBackground = true; window.isReleasedWhenClosed = false
@@ -50,7 +54,13 @@ import Carbon
         }, 1, &event, Unmanaged.passUnretained(self).toOpaque(), &handler)
         registerKeys(); model.foreground()
         if CommandLine.arguments.contains("--smoke-test") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { NSApp.terminate(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                if let position = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.indices.contains(position + 1), let view = self.window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    if let data = bitmap.representation(using: .png, properties: [:]) { try? data.write(to: URL(fileURLWithPath: CommandLine.arguments[position + 1])) }
+                }
+                NSApp.terminate(nil)
+            }
         }
     }
     func registerKeys() {
@@ -78,7 +88,9 @@ import Carbon
     @objc func quit() { NSApp.terminate(nil) }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.orderOut(nil); return false }
     func applicationWillTerminate(_ notification: Notification) {
-        model.generation?.cancel(); model.stopAudio(); model.flushInstructions(); model.saveHistory()
+        model.generation?.cancel(); model.stopAudio()
+        if CommandLine.arguments.contains("--smoke-test") { return }
+        model.flushInstructions(); model.saveHistory()
         // No API key writes on exit; keys change only after Save settings.
         if model.saveAllowed { try? model.store?.write(model.preferences, to: "settings.json") }
         for key in keys { UnregisterEventHotKey(key) }; if let handler { RemoveEventHandler(handler) }

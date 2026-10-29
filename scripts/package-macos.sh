@@ -31,7 +31,7 @@ codesign --force --deep --sign - "$app"
 codesign --verify --deep --strict "$app"
 file "$app/Contents/MacOS/GhostGPT"
 # Smoke-check AppKit construction; no API calls or microphone capture.
-"$app/Contents/MacOS/GhostGPT" --smoke-test
+"$app/Contents/MacOS/GhostGPT" --smoke-test --snapshot "$root/artifacts/macos-$arch/Chat.png"
 cp "$root/docs/MACOS.md" "$root/artifacts/macos-$arch/README-macOS.md"
 mkdir -p "$root/artifacts/downloads"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$root/artifacts/downloads/GhostGPT-macos-$arch.zip"

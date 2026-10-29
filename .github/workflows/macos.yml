@@ -31,6 +31,10 @@ jobs:
         with:
           name: GhostGPT-macos-${{ matrix.arch }}
           path: artifacts/downloads/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-preview-${{ matrix.arch }}
+          path: artifacts/macos-${{ matrix.arch }}/Chat.png
   release:
     if: startsWith(github.ref, 'refs/tags/mac-v')
     needs: build
