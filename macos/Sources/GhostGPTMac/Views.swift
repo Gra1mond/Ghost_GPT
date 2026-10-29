@@ -194,7 +194,7 @@ struct MainView: View {
             }
             Section("Окно") {
                 Slider(value: $model.preferences.opacity, in: 0.15...1) { Text("Плотность фона") }
-                Text("macOS не гарантирует исключение окна из записи экрана. Перед демонстрацией скройте окно и проверьте результат.").font(.caption)
+                Text("Включена экспериментальная защита окна от захвата (sharingType = .none). Она может не работать со ScreenCaptureKit. Проверьте демонстрацию со стороны зрителя; при необходимости скройте окно.").font(.caption)
             }
             Section("Глобальные клавиши · Ctrl+Shift") {
                 ForEach(0..<5) { index in
