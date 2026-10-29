@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Darwin
 import AVFoundation
 
 struct GhostMark: View {
@@ -70,6 +71,7 @@ struct ChatBubble: View {
 }
 struct MainView: View {
     @ObservedObject var model: Model
+    @State private var showQuitOptions = false
     @State private var follow = true
     @State private var initialSidebarWidth: Double?
     var body: some View {
@@ -93,6 +95,13 @@ struct MainView: View {
             .onChange(of: model.preferences.sidebarWidth) { _ in resizeMinimum() }
             .onChange(of: model.instructions) { _ in model.saveInstructions() }
             .onDisappear { model.flushInstructions() }
+            .alert("Завершить Ghost GPT?", isPresented: $showQuitOptions) {
+                Button("Выйти и сохранить") { NSApp.terminate(nil) }
+                Button("Завершить принудительно", role: .destructive) { Darwin._exit(0) }
+                Button("Отмена", role: .cancel) { }
+            } message: {
+                Text("Выход завершит приложение и запись звука. Принудительное завершение немедленно остановит процесс без сохранения последних изменений.")
+            }
     }
     func resizeMinimum() { model.window?.contentMinSize = NSSize(width: model.sidebar && !model.compact ? model.preferences.sidebarWidth + 475 : 480, height: 420) }
     var sidebar: some View {
@@ -141,6 +150,9 @@ struct MainView: View {
             Button { model.compact.toggle(); resizeMinimum(); model.window?.setContentSize(NSSize(width: model.compact ? 520 : 1000, height: model.compact ? 480 : 780)) } label: { Image(systemName: "rectangle.compress.vertical") }.help("Компактный режим")
             Button { model.window?.toggleFullScreen(nil) } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }.help("Полный экран")
             Button { model.window?.orderOut(nil) } label: { Image(systemName: "minus") }.help("Скрыть — запись продолжится")
+            Button { showQuitOptions = true } label: {
+                Image(systemName: "power").frame(width: 28, height: 28).contentShape(Rectangle())
+            }.help("Завершить Ghost GPT").accessibilityLabel("Завершить Ghost GPT")
         }.buttonStyle(.plain)
     }
     var chat: some View {
