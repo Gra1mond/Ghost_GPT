@@ -1,0 +1,55 @@
+name: macOS
+on:
+  push:
+    branches: [main, 'codex/macos-port']
+    tags: ['mac-v*']
+  pull_request:
+    paths: ['macos/**', 'scripts/package-macos.sh', '.github/workflows/macos.yml', 'INTERVIEW.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Swift core
+        working-directory: macos
+        run: swift test
+      - name: Package and smoke-test application
+        run: bash scripts/package-macos.sh '${{ matrix.arch }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostGPT-macos-${{ matrix.arch }}
+          path: artifacts/downloads/*.zip
+  release:
+    if: startsWith(github.ref, 'refs/tags/mac-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: GhostGPT-macos-*
+          merge-multiple: true
+          path: downloads
+      - name: Publish separate macOS prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd downloads
+          sha256sum *.zip > SHA256SUMS.txt
+          cd ..
+          gh release create "$RELEASE_TAG" downloads/* --verify-tag --title "Ghost GPT macOS $RELEASE_TAG" --notes-file docs/MACOS.md --prerelease --latest=false

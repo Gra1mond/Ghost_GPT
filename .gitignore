@@ -5,3 +5,6 @@ artifacts/
 .vs/
 *.user
 *.local.json
+
+macos/.build/
+macos/.swiftpm/
