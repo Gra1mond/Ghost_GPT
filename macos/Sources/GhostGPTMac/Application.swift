@@ -20,7 +20,7 @@ import Carbon
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1000, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "Ghost GPT"; window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
-        window.contentMinSize = NSSize(width: 680, height: 420); window.isMovableByWindowBackground = true; window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: model.preferences.sidebarWidth + 475, height: 420); window.isMovableByWindowBackground = true; window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenPrimary]; window.level = .floating; window.delegate = self
         window.contentView = NSHostingView(rootView: MainView(model: model))
         window.setFrameAutosaveName("GhostGPT.Main")

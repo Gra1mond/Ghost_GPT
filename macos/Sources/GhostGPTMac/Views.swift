@@ -71,12 +71,13 @@ struct ChatBubble: View {
 struct MainView: View {
     @ObservedObject var model: Model
     @State private var follow = true
+    @State private var initialSidebarWidth: Double?
     var body: some View {
         HStack(spacing: 0) {
             if model.sidebar && !model.compact {
                 sidebar.frame(width: model.preferences.sidebarWidth)
                 Rectangle().fill(.white.opacity(0.12)).frame(width: 5).onHover { if $0 { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
-                    .gesture(DragGesture().onChanged { model.preferences.sidebarWidth = min(360, max(200, model.preferences.sidebarWidth + $0.translation.width / 8)) }.onEnded { _ in model.saveSettings() })
+                    .gesture(DragGesture().onChanged { if initialSidebarWidth == nil { initialSidebarWidth = model.preferences.sidebarWidth }; model.preferences.sidebarWidth = min(360, max(200, initialSidebarWidth! + $0.translation.width)) }.onEnded { _ in initialSidebarWidth = nil; model.saveSettings() })
             }
             VStack(spacing: 14) {
                 header
@@ -88,9 +89,12 @@ struct MainView: View {
             }.padding(20).frame(minWidth: 430, maxWidth: .infinity, maxHeight: .infinity)
         }.background(Color(red: 0.08, green: 0.085, blue: 0.10).opacity(model.preferences.opacity)).preferredColorScheme(.dark)
             .onChange(of: model.selected) { _ in model.prompt = ""; model.screenshot = nil; follow = true }
+            .onChange(of: model.sidebar) { _ in resizeMinimum() }
+            .onChange(of: model.preferences.sidebarWidth) { _ in resizeMinimum() }
             .onChange(of: model.instructions) { _ in model.saveInstructions() }
             .onDisappear { model.flushInstructions() }
     }
+    func resizeMinimum() { model.window?.contentMinSize = NSSize(width: model.sidebar && !model.compact ? model.preferences.sidebarWidth + 475 : 480, height: 420) }
     var sidebar: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text("Ghost").font(.title2.weight(.semibold)); Spacer(); Button { model.sidebar = false } label: { Image(systemName: "sidebar.left") }.buttonStyle(.plain).help("Скрыть панель") }
@@ -134,7 +138,7 @@ struct MainView: View {
             Spacer()
             Button { model.onTop.toggle(); model.window?.level = model.onTop ? .floating : .normal } label: { Image(systemName: model.onTop ? "pin.fill" : "pin") }.help("Поверх других окон")
             Button { model.behind() } label: { Image(systemName: "square.3.layers.3d.bottom.filled") }.help("За другие окна")
-            Button { model.compact.toggle(); model.window?.setContentSize(NSSize(width: model.compact ? 520 : 1000, height: model.compact ? 480 : 780)) } label: { Image(systemName: "rectangle.compress.vertical") }.help("Компактный режим")
+            Button { model.compact.toggle(); resizeMinimum(); model.window?.setContentSize(NSSize(width: model.compact ? 520 : 1000, height: model.compact ? 480 : 780)) } label: { Image(systemName: "rectangle.compress.vertical") }.help("Компактный режим")
             Button { model.window?.toggleFullScreen(nil) } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }.help("Полный экран")
             Button { model.window?.orderOut(nil) } label: { Image(systemName: "minus") }.help("Скрыть — запись продолжится")
         }.buttonStyle(.plain)
@@ -179,6 +183,8 @@ struct MainView: View {
         Form {
             Section("Подключение ИИ") {
                 TextField("Адрес API", text: $model.preferences.endpoint); SecureField("API-ключ", text: $model.key); TextField("Модель", text: $model.preferences.model); TextField("Vision-модель (необязательно)", text: $model.preferences.visionModel)
+                Button(model.checkingConnection ? "Проверка…" : "Проверить ключ и загрузить модели") { model.loadModels() }.disabled(model.checkingConnection)
+                if !model.models.isEmpty { Picker("Доступные модели", selection: $model.preferences.model) { ForEach(Array(Set(model.models + [model.preferences.model])).sorted(), id: \.self) { Text($0).tag($0) } } }
                 Button("Wellflow") { if model.preferences.endpoint != "https://api.wellflow.dev/v1" { model.key = "" }; model.preferences.endpoint = "https://api.wellflow.dev/v1"; model.preferences.model = "gpt-5.6-sol" }
             }
             Section("Распознавание речи — отдельный API") {

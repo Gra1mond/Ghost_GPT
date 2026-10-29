@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import AVFoundation
+import ScreenCaptureKit
 
 @MainActor final class Model: ObservableObject {
     @Published var preferences = Preferences()
@@ -29,6 +30,8 @@ import AVFoundation
     @Published var consent = false
     @Published var folderName = ""
     @Published var showFolderEditor = false
+    @Published var models: [String] = []
+    @Published var checkingConnection = false
     var store: LocalStore?
     var saveAllowed = true
     var generation: Task<Void, Never>?, audioWorker: Task<Void, Never>?, summarizer: Task<Void, Never>?, instructionSave: Task<Void, Never>?
@@ -39,6 +42,8 @@ import AVFoundation
         do {
             let store = try LocalStore(); self.store = store
             preferences = try store.read("settings.json", as: Preferences.self) ?? Preferences()
+            preferences.opacity = min(1, max(0.15, preferences.opacity))
+            preferences.sidebarWidth = min(360, max(200, preferences.sidebarWidth))
             key = String(data: try Vault.get("chat-key") ?? Data(), encoding: .utf8) ?? ""
             audioKey = String(data: try Vault.get("audio-key") ?? Data(), encoding: .utf8) ?? ""
             chats = try store.loadChats(); selected = chats.first?.id
@@ -49,8 +54,16 @@ import AVFoundation
     func saveHistory() { guard saveAllowed else { return }; do { try store?.saveChats(chats) } catch { status = "Не удалось сохранить историю: \(error.localizedDescription)" } }
     func saveSettings() {
         do { try Vault.put(Data(key.utf8), account: "chat-key"); try Vault.put(Data(audioKey.utf8), account: "audio-key")
-            try store?.write(preferences, to: "settings.json"); hotkeyUpdate?(); status = "Настройки сохранены" }
+            try store?.write(preferences, to: "settings.json"); status = "Настройки сохранены"; hotkeyUpdate?() }
         catch { status = error.localizedDescription }
+    }
+    func loadModels() {
+        guard !checkingConnection else { return }; checkingConnection = true
+        Task {
+            defer { checkingConnection = false }
+            do { models = try await API.models(endpoint: preferences.endpoint, key: key); status = "Подключение проверено. Моделей: \(models.count)." }
+            catch { status = error.localizedDescription }
+        }
     }
     func saveInstructions() {
         instructionSave?.cancel()
@@ -167,6 +180,11 @@ import AVFoundation
         Task {
             defer { screenshotBusy = false; if captureSession == session { foreground() } }
             do {
+                if !region {
+                    let data = try await DesktopCapture.allScreens()
+                    if captureSession == session { screenshot = data; status = "Снимок всех экранов прикреплён. Отправка — только вместе с сообщением." }
+                    return
+                }
                 let data = try await Task.detached { () throws -> Data? in
                     let url = FileManager.default.temporaryDirectory.appendingPathComponent("GhostGPT-\(UUID()).png")
                     defer { try? FileManager.default.removeItem(at: url) }
@@ -183,5 +201,26 @@ import AVFoundation
                 if captureSession == session { screenshot = data; status = data == nil ? "Снимок отменён или недоступен. Проверьте разрешение записи экрана." : "Снимок прикреплён. Он отправится только вместе с сообщением." }
             } catch { status = error.localizedDescription }
         }
+    }
+}
+
+enum DesktopCapture {
+    static func allScreens() async throws -> Data {
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard !content.displays.isEmpty else { throw AppError(message: "Разрешите запись экрана в настройках macOS.") }
+        let own = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
+        let union = content.displays.map { CGDisplayBounds($0.displayID) }.reduce(CGRect.null) { $0.union($1) }
+        let scale = min(1, 2048 / max(union.width, union.height))
+        let width = max(1, Int(union.width * scale)), height = max(1, Int(union.height * scale))
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw AppError(message: "Недостаточно памяти для снимка.") }
+        for display in content.displays {
+            let config = SCStreamConfiguration(); let bounds = CGDisplayBounds(display.displayID)
+            config.width = max(1, Int(bounds.width * scale)); config.height = max(1, Int(bounds.height * scale)); config.showsCursor = false
+            let filter = SCContentFilter(display: display, excludingApplications: own, exceptingWindows: [])
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            context.draw(image, in: CGRect(x: (bounds.minX - union.minX) * scale, y: (union.maxY - bounds.maxY) * scale, width: bounds.width * scale, height: bounds.height * scale))
+        }
+        guard let image = context.makeImage(), let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]), png.count < 10_000_000 else { throw AppError(message: "Не удалось подготовить снимок.") }
+        return png
     }
 }

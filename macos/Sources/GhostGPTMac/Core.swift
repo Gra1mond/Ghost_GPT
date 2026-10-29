@@ -134,6 +134,7 @@ enum API {
         defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(for: request); try check(response)
         var finished = false, buffer = "", total = 0, lastPaint = Date()
+        do {
         for try await line in bytes.lines {
             try Task.checkCancellation()
             let chunk = try SSEChunk.parse(line); finished = finished || chunk.finished
@@ -145,9 +146,21 @@ enum API {
             }
             if line.trimmingCharacters(in: .whitespaces) == "data: [DONE]" { break }
         }
+        } catch {
+            if !buffer.isEmpty { await receive(buffer) }
+            throw error
+        }
         if !buffer.isEmpty { await receive(buffer) }
         guard finished else { throw AppError(message: "Соединение оборвалось до завершения ответа.") }
         guard total > 0 else { throw AppError(message: "Модель вернула пустой ответ.") }
+    }
+    static func models(endpoint: String, key: String) async throws -> [String] {
+        let request = try request(endpoint: endpoint, key: key, route: "models")
+        let session = URLSession(configuration: .ephemeral, delegate: NoRedirect(), delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        let (data, response) = try await session.data(for: request); try check(response)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let rows = root["data"] as? [[String: Any]] else { throw AppError(message: "Провайдер не вернул список моделей. Введите ID вручную.") }
+        return Array(Set(rows.compactMap { $0["id"] as? String })).sorted()
     }
     static func transcribe(_ data: Data, endpoint: String, key: String, model: String) async throws -> String {
         guard !model.isEmpty else { throw AppError(message: "Укажите модель транскрибации.") }
