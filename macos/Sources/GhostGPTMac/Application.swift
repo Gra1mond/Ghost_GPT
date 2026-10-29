@@ -80,7 +80,7 @@ import Carbon
     func applicationWillTerminate(_ notification: Notification) {
         model.generation?.cancel(); model.stopAudio(); model.flushInstructions(); model.saveHistory()
         // No API key writes on exit; keys change only after Save settings.
-        try? model.store?.write(model.preferences, to: "settings.json")
+        if model.saveAllowed { try? model.store?.write(model.preferences, to: "settings.json") }
         for key in keys { UnregisterEventHotKey(key) }; if let handler { RemoveEventHandler(handler) }
     }
 }

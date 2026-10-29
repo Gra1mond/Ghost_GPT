@@ -4,11 +4,31 @@ import AVFoundation
 
 @MainActor final class Model: ObservableObject {
     @Published var preferences = Preferences()
-    @Published var chats: [Chat] = [], selected: UUID?, page = "Чат", search = "", prompt = "", key = "", audioKey = ""
-    @Published var instructions = "", status = "Готов к работе", busy = false, recording = false, startingAudio = false
-    @Published var screenshot: Data?, screenshotBusy = false, compact = false, sidebar = true, onTop = true
-    @Published var transcript: [String] = [], summary = "", useMicrophone = true, useSystem = true, instruction = ""
-    @Published var consent = false, folderName = "", showFolderEditor = false
+    @Published var chats: [Chat] = []
+    @Published var selected: UUID?
+    @Published var page = "Чат"
+    @Published var search = ""
+    @Published var prompt = ""
+    @Published var key = ""
+    @Published var audioKey = ""
+    @Published var instructions = ""
+    @Published var status = "Готов к работе"
+    @Published var busy = false
+    @Published var recording = false
+    @Published var startingAudio = false
+    @Published var screenshot: Data?
+    @Published var screenshotBusy = false
+    @Published var compact = false
+    @Published var sidebar = true
+    @Published var onTop = true
+    @Published var transcript: [String] = []
+    @Published var summary = ""
+    @Published var useMicrophone = true
+    @Published var useSystem = true
+    @Published var instruction = ""
+    @Published var consent = false
+    @Published var folderName = ""
+    @Published var showFolderEditor = false
     var store: LocalStore?
     var saveAllowed = true
     var generation: Task<Void, Never>?, audioWorker: Task<Void, Never>?, summarizer: Task<Void, Never>?, instructionSave: Task<Void, Never>?
