@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Ghost GPT</Product>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
@@ -12,6 +12,8 @@
     <ApplicationIcon>Assets/ghost.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Assets/questions.json" />
+    <PackageReference Include="PdfPig" Version="0.1.14" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <Content Include="../../INTERVIEW.md" Link="INTERVIEW.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

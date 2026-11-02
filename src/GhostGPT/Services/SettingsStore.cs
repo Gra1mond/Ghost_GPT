@@ -18,6 +18,8 @@ public sealed class Settings
     public double Opacity { get; set; } = .97;
     public double SidebarWidth { get; set; } = 280;
     public List<string> ChatFolders { get; set; } = [];
+    public bool UseResume { get; set; }
+    public bool ConstantArrowCursor { get; set; } = true;
     public bool AlwaysOnTop { get; set; } = true;
     public bool ExcludeCapture { get; set; } = true;
     public string ToggleKey { get; set; } = "Space";

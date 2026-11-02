@@ -14,6 +14,9 @@ public sealed class WindowService : IDisposable
     [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] private struct MinMaxInfo { public NativePoint Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize; }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)] private struct MonitorInfo { public int Size; public Rect Monitor, Work; public uint Flags; }
+    [DllImport("user32.dll")] private static extern IntPtr LoadCursor(IntPtr instance, IntPtr name);
+    [DllImport("user32.dll")] private static extern IntPtr SetCursor(IntPtr cursor);
+    private bool constantArrow;
     private readonly Window window;
     private readonly HwndSource source;
     private readonly List<int> registered = [];
@@ -24,15 +27,23 @@ public sealed class WindowService : IDisposable
         this.window = window;
         source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
         source.AddHook(Hook);
+        window.AddHandler(Mouse.QueryCursorEvent, new QueryCursorEventHandler(QueryCursor), true);
     }
     public string Apply(Settings settings)
     {
+        constantArrow = settings.ConstantArrowCursor;
+        Mouse.UpdateCursor();
         window.Topmost = settings.AlwaysOnTop;
         bool supported = OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041);
         bool ok = SetWindowDisplayAffinity(source.Handle, settings.ExcludeCapture && supported ? 0x11u : 0u);
         return !ok ? "Не удалось изменить исключение из захвата." : settings.ExcludeCapture
             ? supported ? "Исключение из захвата включено · проверьте в программе демонстрации" : "Исключение не поддерживается: нужна Windows 10 2004+"
             : "Окно видно при захвате экрана";
+    }
+    private void QueryCursor(object sender, QueryCursorEventArgs e)
+    {
+        if (!constantArrow) return;
+        e.Cursor = Cursors.Arrow; e.Handled = true;
     }
     public string Register(Settings settings)
     {
@@ -80,6 +91,11 @@ public sealed class WindowService : IDisposable
     }
     private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == 0x20 && constantArrow && wParam == source.Handle)
+        {
+            SetCursor(LoadCursor(IntPtr.Zero, new IntPtr(32512)));
+            handled = true; return new IntPtr(1);
+        }
         if (msg == 0x24)
         {
             var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
@@ -106,5 +122,5 @@ public sealed class WindowService : IDisposable
         if (msg == 0x7E) window.Dispatcher.BeginInvoke(ClampToMonitor);
         return IntPtr.Zero;
     }
-    public void Dispose() { foreach (var id in registered) UnregisterHotKey(source.Handle, id); source.RemoveHook(Hook); }
+    public void Dispose() { foreach (var id in registered) UnregisterHotKey(source.Handle, id); source.RemoveHook(Hook); window.RemoveHandler(Mouse.QueryCursorEvent, new QueryCursorEventHandler(QueryCursor)); }
 }
