@@ -1,0 +1,1402 @@
+[
+  {
+    "Id": "go-01",
+    "Topic": "Go",
+    "Question": "Чем goroutine отличается от потока ОС?",
+    "Answer": "Goroutine планируется средой Go; много goroutine могут разделять потоки ОС.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-02",
+    "Topic": "Go",
+    "Question": "Как передать результат из goroutine?",
+    "Answer": "Через канал либо общую память с синхронизацией и явным ожиданием завершения.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-03",
+    "Topic": "Go",
+    "Question": "Что делает небуферизированный канал?",
+    "Answer": "Связывает отправителя и получателя: операция требует готовности другой стороны.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-04",
+    "Topic": "Go",
+    "Question": "Когда блокируется буферизированный канал?",
+    "Answer": "Отправка при полном буфере, получение при пустом, пока нет встречной операции.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-05",
+    "Topic": "Go",
+    "Question": "Что происходит при чтении закрытого канала?",
+    "Answer": "После накопленных значений возвращается нулевое значение и ok=false.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-06",
+    "Topic": "Go",
+    "Question": "Можно ли отправлять в закрытый канал?",
+    "Answer": "Нет, отправка вызывает panic.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-07",
+    "Topic": "Go",
+    "Question": "Как ведёт себя nil-канал?",
+    "Answer": "Отправка и получение блокируются; в select такая ветвь не готова.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-08",
+    "Topic": "Go",
+    "Question": "Кто должен закрывать канал?",
+    "Answer": "Сторона, знающая, что отправок больше не будет; обычно отправитель.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-09",
+    "Topic": "Go",
+    "Question": "Для чего select?",
+    "Answer": "Выбирает готовую коммуникационную операцию; default позволяет не ждать.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-10",
+    "Topic": "Go",
+    "Question": "Что делать с утечкой goroutine?",
+    "Answer": "Организовать отмену, завершение блокирующих операций и ожидание фоновых задач.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-11",
+    "Topic": "Go",
+    "Question": "Что такое data race?",
+    "Answer": "Конкурентный доступ к памяти с записью без необходимой синхронизации.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-12",
+    "Topic": "Go",
+    "Question": "Как искать гонки?",
+    "Answer": "Запускать тесты с -race; детектор обнаруживает только выполненные пути.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-13",
+    "Topic": "Go",
+    "Question": "Когда нужен Mutex?",
+    "Answer": "Для защиты общего изменяемого состояния единым правилом блокировки.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-14",
+    "Topic": "Go",
+    "Question": "Чем RWMutex отличается от Mutex?",
+    "Answer": "Допускает нескольких читателей или одного писателя; не гарантирует ускорение.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-15",
+    "Topic": "Go",
+    "Question": "Для чего WaitGroup?",
+    "Answer": "Ожидать завершения набора задач; сам по себе не защищает общие данные.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-16",
+    "Topic": "Go",
+    "Question": "Что даёт sync.Once?",
+    "Answer": "Выполняет функцию однократно для экземпляра Once.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-17",
+    "Topic": "Go",
+    "Question": "Для чего context.Context?",
+    "Answer": "Переносит дедлайн, отмену и данные запроса через цепочку вызовов.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-18",
+    "Topic": "Go",
+    "Question": "Почему нужно вызывать cancel?",
+    "Answer": "Для своевременного освобождения ресурсов дочернего контекста.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-19",
+    "Topic": "Go",
+    "Question": "Чем массив отличается от среза?",
+    "Answer": "Длина массива входит в тип; срез представляет участок массива.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-20",
+    "Topic": "Go",
+    "Question": "Что такое len и cap среза?",
+    "Answer": "len — доступная длина, cap — предел расширения без смены базового массива.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-21",
+    "Topic": "Go",
+    "Question": "Может ли append изменить исходный массив?",
+    "Answer": "Да, если хватает ёмкости; иначе выделяется новый базовый массив.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-22",
+    "Topic": "Go",
+    "Question": "Как независимо скопировать срез?",
+    "Answer": "Выделить новый срез и скопировать элементы; вложенные ссылки останутся общими.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-23",
+    "Topic": "Go",
+    "Question": "Чем nil-срез отличается от пустого?",
+    "Answer": "Оба имеют длину ноль, но только nil-срез равен nil.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-24",
+    "Topic": "Go",
+    "Question": "Можно ли сравнить два среза оператором ==?",
+    "Answer": "Нет, допустимо только сравнение с nil; элементы сравнивают отдельно.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-25",
+    "Topic": "Go",
+    "Question": "Безопасна ли map для конкурентной записи?",
+    "Answer": "Нет, нужен mutex, разделение владения или подходящая конкурентная структура.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-26",
+    "Topic": "Go",
+    "Question": "Гарантирован ли порядок обхода map?",
+    "Answer": "Нет, на него нельзя опираться.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-27",
+    "Topic": "Go",
+    "Question": "Что возвращает map при отсутствующем ключе?",
+    "Answer": "Нулевое значение; форма value, ok различает отсутствие и сохранённый ноль.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-28",
+    "Topic": "Go",
+    "Question": "Чем string отличается от []byte?",
+    "Answer": "Строка неизменяема и хранит байты; []byte допускает изменение элементов.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-29",
+    "Topic": "Go",
+    "Question": "Что считает len строки?",
+    "Answer": "Количество байтов, не символов Unicode.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-30",
+    "Topic": "Go",
+    "Question": "Что возвращает range по строке?",
+    "Answer": "Байтовые позиции и декодированные rune; ошибочный UTF-8 заменяется RuneError.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-31",
+    "Topic": "Go",
+    "Question": "Что такое rune?",
+    "Answer": "Псевдоним int32, обычно представляющий кодовую точку Unicode.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-32",
+    "Topic": "Go",
+    "Question": "Как устроена реализация интерфейса?",
+    "Answer": "Тип удовлетворяет интерфейсу, если его набор методов содержит требуемые методы.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-33",
+    "Topic": "Go",
+    "Question": "Почему интерфейс с nil-указателем не равен nil?",
+    "Answer": "Интерфейс содержит конкретный динамический тип, даже если его значение nil.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-34",
+    "Topic": "Go",
+    "Question": "Чем value receiver отличается от pointer receiver?",
+    "Answer": "Первый получает копию значения; второй позволяет изменять объект через указатель.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-35",
+    "Topic": "Go",
+    "Question": "Зачем маленькие интерфейсы?",
+    "Answer": "Они выражают нужные потребителю возможности и упрощают подстановку реализаций.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-36",
+    "Topic": "Go",
+    "Question": "Что делает type assertion?",
+    "Answer": "Извлекает значение заданного динамического типа; форма с ok избегает panic.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-37",
+    "Topic": "Go",
+    "Question": "Когда выполняется defer?",
+    "Answer": "При выходе из функции, в обратном порядке регистрации.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-38",
+    "Topic": "Go",
+    "Question": "Когда вычисляются аргументы defer?",
+    "Answer": "При выполнении самого оператора defer.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-39",
+    "Topic": "Go",
+    "Question": "Для чего panic и recover?",
+    "Answer": "Для аварийной раскрутки стека и восстановления в отложенной функции той же goroutine.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-40",
+    "Topic": "Go",
+    "Question": "Как оборачивать ошибки?",
+    "Answer": "Добавлять контекст через fmt.Errorf с %w, сохраняя цепочку причины.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-41",
+    "Topic": "Go",
+    "Question": "Зачем errors.Is?",
+    "Answer": "Проверяет соответствие ошибки целевому значению по цепочке обёрток.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-42",
+    "Topic": "Go",
+    "Question": "Зачем errors.As?",
+    "Answer": "Находит ошибку подходящего типа по цепочке обёрток.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-43",
+    "Topic": "Go",
+    "Question": "Что такое escape analysis?",
+    "Answer": "Анализ времени жизни, помогающий компилятору выбрать размещение данных.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-44",
+    "Topic": "Go",
+    "Question": "Гарантирует ли new размещение в куче?",
+    "Answer": "Нет, размещение зависит от анализа компилятора.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-45",
+    "Topic": "Go",
+    "Question": "Для чего make?",
+    "Answer": "Создаёт и инициализирует срезы, map и каналы.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-46",
+    "Topic": "Go",
+    "Question": "Что делает сборщик мусора?",
+    "Answer": "Освобождает память недостижимых объектов; не заменяет закрытие файлов и соединений.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-47",
+    "Topic": "Go",
+    "Question": "Зачем профилирование pprof?",
+    "Answer": "Помогает измерить CPU, память и другие характеристики до оптимизации.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-48",
+    "Topic": "Go",
+    "Question": "Для чего go.mod?",
+    "Answer": "Описывает модуль, версию Go и зависимости модуля.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-49",
+    "Topic": "Go",
+    "Question": "Что дают generics?",
+    "Answer": "Позволяют писать функции и типы с параметрами типов и ограничениями.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "go-50",
+    "Topic": "Go",
+    "Question": "Как тестировать отмену запроса?",
+    "Answer": "Создать отменяемый контекст, отменить его и проверить завершение операции без зависания.",
+    "Source": "https://go.dev/doc/effective_go"
+  },
+  {
+    "Id": "sql-01",
+    "Topic": "SQL",
+    "Question": "Чем WHERE отличается от HAVING?",
+    "Answer": "WHERE отбирает строки до группировки; HAVING фильтрует группы.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-02",
+    "Topic": "SQL",
+    "Question": "Что делает INNER JOIN?",
+    "Answer": "Возвращает комбинации строк, удовлетворяющие условию соединения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-03",
+    "Topic": "SQL",
+    "Question": "Что делает LEFT JOIN?",
+    "Answer": "Сохраняет все строки слева, дополняя отсутствующую правую сторону NULL.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-04",
+    "Topic": "SQL",
+    "Question": "Почему WHERE ломает ожидаемый LEFT JOIN?",
+    "Answer": "Условие по правой стороне может исключить строки с NULL после соединения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-05",
+    "Topic": "SQL",
+    "Question": "Чем UNION отличается от UNION ALL?",
+    "Answer": "UNION удаляет дубликаты; UNION ALL сохраняет их.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-06",
+    "Topic": "SQL",
+    "Question": "Что означает NULL?",
+    "Answer": "Отсутствующее или неизвестное значение; проверки используют IS NULL.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-07",
+    "Topic": "SQL",
+    "Question": "Почему NULL = NULL не true?",
+    "Answer": "Обычное сравнение с NULL даёт неизвестный результат.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-08",
+    "Topic": "SQL",
+    "Question": "Чем COUNT(*) отличается от COUNT(column)?",
+    "Answer": "Первый считает строки, второй — ненулевые значения выражения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-09",
+    "Topic": "SQL",
+    "Question": "Как получить уникальные значения?",
+    "Answer": "Использовать DISTINCT по выбранному набору выражений.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-10",
+    "Topic": "SQL",
+    "Question": "Для чего GROUP BY?",
+    "Answer": "Формирует группы строк для агрегатных вычислений.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-11",
+    "Topic": "SQL",
+    "Question": "Чем оконная функция отличается от агрегата с GROUP BY?",
+    "Answer": "Оконная функция вычисляет значение для строки, сохраняя строки результата.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-12",
+    "Topic": "SQL",
+    "Question": "Чем ROW_NUMBER отличается от RANK?",
+    "Answer": "ROW_NUMBER нумерует строки; RANK даёт равные ранги совпадениям с пропусками далее.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-13",
+    "Topic": "SQL",
+    "Question": "Чем DENSE_RANK отличается от RANK?",
+    "Answer": "При совпадениях рангов DENSE_RANK не оставляет пропуски.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-14",
+    "Topic": "SQL",
+    "Question": "Как получить последнюю запись каждой группы?",
+    "Answer": "Пронумеровать строки по группе с ORDER BY времени и дополнительным уникальным ключом.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-15",
+    "Topic": "SQL",
+    "Question": "Зачем ORDER BY при LIMIT?",
+    "Answer": "Без упорядочивания выбранное подмножество не определено.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-16",
+    "Topic": "SQL",
+    "Question": "Чем OFFSET-пагинация неудобна?",
+    "Answer": "Большие смещения дороги; изменения данных могут сдвигать страницы.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-17",
+    "Topic": "SQL",
+    "Question": "Что такое keyset pagination?",
+    "Answer": "Следующая страница выбирается по последнему ключу устойчивого порядка.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-18",
+    "Topic": "SQL",
+    "Question": "Что такое первичный ключ?",
+    "Answer": "Уникальный ненулевой идентификатор строки, заданный ограничением.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-19",
+    "Topic": "SQL",
+    "Question": "Что делает внешний ключ?",
+    "Answer": "Поддерживает ссылочную целостность между значениями таблиц.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-20",
+    "Topic": "SQL",
+    "Question": "Для чего UNIQUE?",
+    "Answer": "Запрещает дубликаты указанного ключа с учётом правил NULL конкретной СУБД.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-21",
+    "Topic": "SQL",
+    "Question": "Что проверяет CHECK?",
+    "Answer": "Требует выполнения предиката для строки; поведение NULL нужно учитывать отдельно.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-22",
+    "Topic": "SQL",
+    "Question": "Чем DELETE отличается от TRUNCATE в PostgreSQL?",
+    "Answer": "DELETE удаляет выбранные строки; TRUNCATE очищает таблицу с другими блокировками и поведением триггеров.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-23",
+    "Topic": "SQL",
+    "Question": "Что такое транзакция?",
+    "Answer": "Группа действий, завершаемая COMMIT или откатываемая ROLLBACK.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-24",
+    "Topic": "SQL",
+    "Question": "Что означает атомарность?",
+    "Answer": "Результаты транзакции применяются целиком либо откатываются.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-25",
+    "Topic": "SQL",
+    "Question": "Что означает согласованность ACID?",
+    "Answer": "Транзакция должна сохранять заданные ограничения и инварианты данных.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-26",
+    "Topic": "SQL",
+    "Question": "Что означает изоляция?",
+    "Answer": "Ограничение взаимного влияния одновременно выполняющихся транзакций.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-27",
+    "Topic": "SQL",
+    "Question": "Что означает долговечность?",
+    "Answer": "После подтверждённого commit данные сохраняются согласно гарантиям конфигурации хранения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-28",
+    "Topic": "SQL",
+    "Question": "Что такое dirty read?",
+    "Answer": "Чтение данных другой ещё не подтверждённой транзакции.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-29",
+    "Topic": "SQL",
+    "Question": "Что такое non-repeatable read?",
+    "Answer": "Повторное чтение строки видит изменения другой подтверждённой транзакции.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-30",
+    "Topic": "SQL",
+    "Question": "Что такое phantom read?",
+    "Answer": "Повтор запроса обнаруживает изменение набора подходящих строк.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-31",
+    "Topic": "SQL",
+    "Question": "Как работает Read Committed в PostgreSQL?",
+    "Answer": "Каждый оператор получает собственный снимок подтверждённых данных.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-32",
+    "Topic": "SQL",
+    "Question": "Что даёт Repeatable Read в PostgreSQL?",
+    "Answer": "Стабильный снимок транзакции; некоторые конфликты требуют повторного выполнения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-33",
+    "Topic": "SQL",
+    "Question": "Что даёт Serializable?",
+    "Answer": "Успешные транзакции эквивалентны последовательному выполнению; возможны ошибки сериализации.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-34",
+    "Topic": "SQL",
+    "Question": "Что такое MVCC?",
+    "Answer": "Хранение версий строк для чтения согласованных снимков при конкурентной работе.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-35",
+    "Topic": "SQL",
+    "Question": "Для чего SELECT FOR UPDATE?",
+    "Answer": "Блокирует выбранные строки для последующего изменения до завершения транзакции.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-36",
+    "Topic": "SQL",
+    "Question": "Что такое deadlock?",
+    "Answer": "Цикл ожидания блокировок; СУБД прерывает одну из транзакций.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-37",
+    "Topic": "SQL",
+    "Question": "Как уменьшать deadlock?",
+    "Answer": "Брать блокировки в едином порядке и сокращать длительность транзакций.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-38",
+    "Topic": "SQL",
+    "Question": "Что такое индекс?",
+    "Answer": "Дополнительная структура для ускорения определённых запросов ценой места и записи.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-39",
+    "Topic": "SQL",
+    "Question": "Когда B-tree полезен?",
+    "Answer": "Для равенства, диапазонов и подходящей сортировки по индексируемым ключам.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-40",
+    "Topic": "SQL",
+    "Question": "Почему индекс не используется?",
+    "Answer": "Планировщик может оценить последовательное чтение дешевле либо условие не подходит индексу.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-41",
+    "Topic": "SQL",
+    "Question": "Что важно в составном B-tree индексе?",
+    "Answer": "Порядок ключей и условия запроса влияют на эффективность доступа.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-42",
+    "Topic": "SQL",
+    "Question": "Что такое частичный индекс?",
+    "Answer": "Индекс только строк, удовлетворяющих заданному предикату.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-43",
+    "Topic": "SQL",
+    "Question": "Что такое индекс по выражению?",
+    "Answer": "Индексирует результат выражения, используемого запросом.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-44",
+    "Topic": "SQL",
+    "Question": "Для чего EXPLAIN?",
+    "Answer": "Показывает выбранный план и оценки стоимости выполнения.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-45",
+    "Topic": "SQL",
+    "Question": "Чем опасен EXPLAIN ANALYZE?",
+    "Answer": "Он реально выполняет оператор, включая изменения данных.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-46",
+    "Topic": "SQL",
+    "Question": "Для чего VACUUM в PostgreSQL?",
+    "Answer": "Убирает доступное для очистки пространство старых версий и обслуживает видимость.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-47",
+    "Topic": "SQL",
+    "Question": "Для чего ANALYZE?",
+    "Answer": "Обновляет статистику, используемую планировщиком.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-48",
+    "Topic": "SQL",
+    "Question": "Что такое CTE?",
+    "Answer": "Именованный подзапрос WITH; материализация зависит от запроса и версии СУБД.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-49",
+    "Topic": "SQL",
+    "Question": "Что такое UPSERT в PostgreSQL?",
+    "Answer": "INSERT ON CONFLICT задаёт обработку конфликта уникальности.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "sql-50",
+    "Topic": "SQL",
+    "Question": "Как предотвращать SQL injection?",
+    "Answer": "Использовать параметры запросов; динамические идентификаторы проверять отдельно.",
+    "Source": "https://www.postgresql.org/docs/18/sql.html"
+  },
+  {
+    "Id": "kubernetes-01",
+    "Topic": "Kubernetes",
+    "Question": "Что такое Pod?",
+    "Answer": "Минимальная единица запуска: один или несколько контейнеров с общими сетевыми ресурсами.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-02",
+    "Topic": "Kubernetes",
+    "Question": "Чем Pod отличается от контейнера?",
+    "Answer": "Pod задаёт совместное размещение контейнеров и их общие ресурсы.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-03",
+    "Topic": "Kubernetes",
+    "Question": "Для чего Deployment?",
+    "Answer": "Управляет декларативным обновлением и количеством реплик взаимозаменяемых Pod.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-04",
+    "Topic": "Kubernetes",
+    "Question": "Для чего ReplicaSet?",
+    "Answer": "Поддерживает заданное число реплик Pod по селектору.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-05",
+    "Topic": "Kubernetes",
+    "Question": "Когда нужен StatefulSet?",
+    "Answer": "Когда важны стабильные идентификаторы, порядок операций и постоянные тома реплик.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-06",
+    "Topic": "Kubernetes",
+    "Question": "Для чего DaemonSet?",
+    "Answer": "Размещает экземпляры Pod на подходящих узлах кластера.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-07",
+    "Topic": "Kubernetes",
+    "Question": "Чем Job отличается от Deployment?",
+    "Answer": "Job выполняет работу до завершения; Deployment поддерживает постоянно работающие реплики.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-08",
+    "Topic": "Kubernetes",
+    "Question": "Для чего CronJob?",
+    "Answer": "Создаёт Job по расписанию; задачи должны учитывать возможные повторы или пропуски.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-09",
+    "Topic": "Kubernetes",
+    "Question": "Что такое Service?",
+    "Answer": "Стабильный способ доступа к набору сетевых конечных точек.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-10",
+    "Topic": "Kubernetes",
+    "Question": "Для чего ClusterIP?",
+    "Answer": "Предоставляет Service адрес для доступа внутри кластера.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-11",
+    "Topic": "Kubernetes",
+    "Question": "Как работает NodePort?",
+    "Answer": "Открывает порт Service на узлах согласно сетевой реализации и конфигурации.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-12",
+    "Topic": "Kubernetes",
+    "Question": "Что означает LoadBalancer Service?",
+    "Answer": "Запрашивает внешний балансировщик у поддерживаемой инфраструктуры.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-13",
+    "Topic": "Kubernetes",
+    "Question": "Для чего headless Service?",
+    "Answer": "Не выделяет обычный виртуальный IP, позволяя обнаруживать конечные точки напрямую.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-14",
+    "Topic": "Kubernetes",
+    "Question": "Что такое Ingress?",
+    "Answer": "Правила HTTP-маршрутизации, реализуемые установленным Ingress controller.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-15",
+    "Topic": "Kubernetes",
+    "Question": "Что такое Gateway API?",
+    "Answer": "Набор ресурсов для более выразимого управления сетевым трафиком с поддерживающим контроллером.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-16",
+    "Topic": "Kubernetes",
+    "Question": "Для чего namespace?",
+    "Answer": "Логически разделяет именованные ресурсы; сам по себе не является полной границей безопасности.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-17",
+    "Topic": "Kubernetes",
+    "Question": "Для чего labels?",
+    "Answer": "Метки объектов для поиска, организации и выбора ресурсов.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-18",
+    "Topic": "Kubernetes",
+    "Question": "Для чего annotations?",
+    "Answer": "Метаданные без назначения селекторов меток.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-19",
+    "Topic": "Kubernetes",
+    "Question": "Что такое selector?",
+    "Answer": "Условие выбора объектов по меткам или другим поддерживаемым полям.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-20",
+    "Topic": "Kubernetes",
+    "Question": "Что хранит ConfigMap?",
+    "Answer": "Несекретные конфигурационные данные для приложений.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-21",
+    "Topic": "Kubernetes",
+    "Question": "Гарантирует ли Secret шифрование?",
+    "Answer": "Нет: кодирование base64 не шифрование; защита зависит от хранения и доступа.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-22",
+    "Topic": "Kubernetes",
+    "Question": "Как обновляются переменные из ConfigMap?",
+    "Answer": "Переменные существующего контейнера автоматически не меняются; нужен перезапуск.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-23",
+    "Topic": "Kubernetes",
+    "Question": "Чем requests отличаются от limits?",
+    "Answer": "Requests влияют на планирование; limits ограничивают потребление ресурсов.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-24",
+    "Topic": "Kubernetes",
+    "Question": "Что происходит при превышении memory limit?",
+    "Answer": "Процесс контейнера может быть завершён из-за нехватки памяти в его лимите.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-25",
+    "Topic": "Kubernetes",
+    "Question": "Что означает CPU throttling?",
+    "Answer": "Планировщик ограничивает доступное процессу процессорное время согласно лимитам.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-26",
+    "Topic": "Kubernetes",
+    "Question": "Что проверяет readiness probe?",
+    "Answer": "Готовность принимать трафик; неготовые Pod исключаются из готовых конечных точек.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-27",
+    "Topic": "Kubernetes",
+    "Question": "Что проверяет liveness probe?",
+    "Answer": "Нужен ли перезапуск контейнера из-за неработоспособности.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-28",
+    "Topic": "Kubernetes",
+    "Question": "Для чего startup probe?",
+    "Answer": "Даёт медленно стартующему приложению время перед обычными проверками.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-29",
+    "Topic": "Kubernetes",
+    "Question": "Что означает CrashLoopBackOff?",
+    "Answer": "Контейнер многократно завершается, и kubelet увеличивает задержки перезапуска.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-30",
+    "Topic": "Kubernetes",
+    "Question": "Как диагностировать Pending Pod?",
+    "Answer": "Посмотреть события, requests, доступные узлы, ограничения планирования и тома.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-31",
+    "Topic": "Kubernetes",
+    "Question": "Что делает scheduler?",
+    "Answer": "Выбирает узел для Pod с учётом ресурсов и правил планирования.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-32",
+    "Topic": "Kubernetes",
+    "Question": "Для чего nodeSelector?",
+    "Answer": "Ограничивает выбор узлов совпадением меток.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-33",
+    "Topic": "Kubernetes",
+    "Question": "Что такое node affinity?",
+    "Answer": "Более выразительные обязательные или предпочтительные условия размещения по узлам.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-34",
+    "Topic": "Kubernetes",
+    "Question": "Для чего taints и tolerations?",
+    "Answer": "Taints отталкивают Pod; toleration разрешает терпеть taint, но не гарантирует размещение.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-35",
+    "Topic": "Kubernetes",
+    "Question": "Для чего pod anti-affinity?",
+    "Answer": "Разносит Pod относительно других Pod по выбранной топологии.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-36",
+    "Topic": "Kubernetes",
+    "Question": "Что такое HPA?",
+    "Answer": "Меняет число реплик по наблюдаемым метрикам и заданным правилам.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-37",
+    "Topic": "Kubernetes",
+    "Question": "Для чего PodDisruptionBudget?",
+    "Answer": "Ограничивает допустимые добровольные нарушения доступности через механизм eviction.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-38",
+    "Topic": "Kubernetes",
+    "Question": "Что такое PersistentVolume?",
+    "Answer": "Кластерный ресурс постоянного хранилища с заданными характеристиками.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-39",
+    "Topic": "Kubernetes",
+    "Question": "Что такое PersistentVolumeClaim?",
+    "Answer": "Запрос приложения на постоянное хранилище.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-40",
+    "Topic": "Kubernetes",
+    "Question": "Для чего StorageClass?",
+    "Answer": "Описывает класс и параметры предоставления хранилища.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-41",
+    "Topic": "Kubernetes",
+    "Question": "Что такое emptyDir?",
+    "Answer": "Временный том на время жизни Pod; не подходит для сохранения после удаления Pod.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-42",
+    "Topic": "Kubernetes",
+    "Question": "Для чего ServiceAccount?",
+    "Answer": "Идентификатор процесса в Pod для обращения к API и интеграций.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-43",
+    "Topic": "Kubernetes",
+    "Question": "Что даёт RBAC?",
+    "Answer": "Авторизацию действий над ресурсами через роли и привязки.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-44",
+    "Topic": "Kubernetes",
+    "Question": "Для чего NetworkPolicy?",
+    "Answer": "Описывает разрешённый трафик для выбранных Pod при поддержке сетевого плагина.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-45",
+    "Topic": "Kubernetes",
+    "Question": "Что такое control plane?",
+    "Answer": "Компоненты API, хранения состояния, планирования и управления кластером.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-46",
+    "Topic": "Kubernetes",
+    "Question": "Для чего etcd?",
+    "Answer": "Хранит состояние Kubernetes; требует защиты, резервирования и корректных процедур восстановления.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-47",
+    "Topic": "Kubernetes",
+    "Question": "Как работает reconciliation?",
+    "Answer": "Контроллер сравнивает наблюдаемое состояние с желаемым и предпринимает действия.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-48",
+    "Topic": "Kubernetes",
+    "Question": "Что делает rolling update?",
+    "Answer": "Постепенно заменяет реплики с учётом maxSurge и maxUnavailable.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-49",
+    "Topic": "Kubernetes",
+    "Question": "Для чего graceful termination?",
+    "Answer": "Даёт приложению время завершить запросы перед принудительной остановкой.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kubernetes-50",
+    "Topic": "Kubernetes",
+    "Question": "Что такое CRD и operator?",
+    "Answer": "CRD добавляет тип ресурса; operator реализует предметную логику управления через контроллер.",
+    "Source": "https://kubernetes.io/docs/concepts/"
+  },
+  {
+    "Id": "kafka-01",
+    "Topic": "Kafka",
+    "Question": "Что такое Kafka?",
+    "Answer": "Распределённая платформа событий с долговременными журналами и потоковой обработкой.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-02",
+    "Topic": "Kafka",
+    "Question": "Что такое topic?",
+    "Answer": "Именованная категория событий, разделённая на partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-03",
+    "Topic": "Kafka",
+    "Question": "Что такое partition?",
+    "Answer": "Упорядоченный журнал записей, являющийся единицей распределения и параллелизма.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-04",
+    "Topic": "Kafka",
+    "Question": "Где гарантирован порядок сообщений?",
+    "Answer": "Внутри partition; общий порядок между partition не гарантирован.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-05",
+    "Topic": "Kafka",
+    "Question": "Что такое offset?",
+    "Answer": "Позиция записи в конкретной partition, а не глобальный идентификатор.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-06",
+    "Topic": "Kafka",
+    "Question": "Для чего message key?",
+    "Answer": "Участвует в выборе partition и задаёт ключ для compaction.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-07",
+    "Topic": "Kafka",
+    "Question": "Что такое broker?",
+    "Answer": "Сервер Kafka, обслуживающий хранение и обмен данными кластера.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-08",
+    "Topic": "Kafka",
+    "Question": "Что такое producer?",
+    "Answer": "Клиент, публикующий записи в topic.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-09",
+    "Topic": "Kafka",
+    "Question": "Что такое consumer?",
+    "Answer": "Клиент, читающий записи из назначенных partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-10",
+    "Topic": "Kafka",
+    "Question": "Что такое consumer group?",
+    "Answer": "Группа потребителей, совместно распределяющая чтение partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-11",
+    "Topic": "Kafka",
+    "Question": "Могут ли два consumer одной группы читать одну partition одновременно?",
+    "Answer": "В обычном групповом назначении partition принадлежит одному активному consumer группы.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-12",
+    "Topic": "Kafka",
+    "Question": "Что происходит при избытке consumer в группе?",
+    "Answer": "Часть потребителей остаётся без partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-13",
+    "Topic": "Kafka",
+    "Question": "Зачем разные consumer group?",
+    "Answer": "Позволяют независимо читать один topic с отдельными позициями чтения.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-14",
+    "Topic": "Kafka",
+    "Question": "Что такое rebalance?",
+    "Answer": "Перераспределение partition между участниками consumer group.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-15",
+    "Topic": "Kafka",
+    "Question": "Почему частые rebalance вредят?",
+    "Answer": "Прерывают или усложняют обработку и могут увеличить задержки и повторы.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-16",
+    "Topic": "Kafka",
+    "Question": "Для чего max.poll.interval.ms?",
+    "Answer": "Ограничивает время между poll согласно протоколу группы и правилам клиента.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-17",
+    "Topic": "Kafka",
+    "Question": "Для чего session timeout?",
+    "Answer": "Определяет обнаружение недоступного участника по отсутствию heartbeat согласно протоколу.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-18",
+    "Topic": "Kafka",
+    "Question": "Что такое committed offset?",
+    "Answer": "Сохранённая позиция продолжения чтения группы, обычно следующий offset.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-19",
+    "Topic": "Kafka",
+    "Question": "Почему commit до обработки опасен?",
+    "Answer": "После сбоя запись может считаться пройденной, хотя обработка не завершилась.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-20",
+    "Topic": "Kafka",
+    "Question": "Почему commit после обработки допускает дубликаты?",
+    "Answer": "Сбой между обработкой и commit приводит к повторному чтению.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-21",
+    "Topic": "Kafka",
+    "Question": "Что означает at-most-once?",
+    "Answer": "Запись может потеряться для обработки, но схема избегает повторной доставки ценой потерь.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-22",
+    "Topic": "Kafka",
+    "Question": "Что означает at-least-once?",
+    "Answer": "Повторная обработка возможна, поэтому побочные эффекты должны быть устойчивы к дубликатам.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-23",
+    "Topic": "Kafka",
+    "Question": "Что означает exactly-once в Kafka?",
+    "Answer": "Транзакции и подходящие настройки обеспечивают атомарность в определённых Kafka-сценариях, не любых внешних эффектов.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-24",
+    "Topic": "Kafka",
+    "Question": "Что даёт idempotent producer?",
+    "Answer": "Устраняет дубликаты от повторных отправок в рамках поддерживаемых гарантий producer.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-25",
+    "Topic": "Kafka",
+    "Question": "Зачем transactional.id?",
+    "Answer": "Идентифицирует транзакционного producer и участвует в fencing старых экземпляров.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-26",
+    "Topic": "Kafka",
+    "Question": "Для чего read_committed?",
+    "Answer": "Скрывает от consumer записи отменённых и ещё не завершённых транзакций.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-27",
+    "Topic": "Kafka",
+    "Question": "Что такое replication factor?",
+    "Answer": "Число реплик partition на брокерах.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-28",
+    "Topic": "Kafka",
+    "Question": "Кто такой partition leader?",
+    "Answer": "Реплика, обслуживающая основную координацию чтения и записи partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-29",
+    "Topic": "Kafka",
+    "Question": "Что такое ISR?",
+    "Answer": "Набор реплик, достаточно синхронизированных с лидером по правилам Kafka.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-30",
+    "Topic": "Kafka",
+    "Question": "Что означает acks=0?",
+    "Answer": "Producer не ждёт подтверждения брокера; ошибки доставки могут остаться неизвестными.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-31",
+    "Topic": "Kafka",
+    "Question": "Что означает acks=1?",
+    "Answer": "Producer ждёт подтверждения лидера, но не всех синхронных реплик.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-32",
+    "Topic": "Kafka",
+    "Question": "Что означает acks=all?",
+    "Answer": "Подтверждение зависит от текущих ISR и требований min.insync.replicas.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-33",
+    "Topic": "Kafka",
+    "Question": "Для чего min.insync.replicas?",
+    "Answer": "Определяет минимальный ISR для принятия записей с требуемыми подтверждениями.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-34",
+    "Topic": "Kafka",
+    "Question": "Почему replication factor=3 не исключает потерю данных?",
+    "Answer": "Гарантии также зависят от acks, ISR, выборов лидера и сценария отказа.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-35",
+    "Topic": "Kafka",
+    "Question": "Чем опасен unclean leader election?",
+    "Answer": "Несинхронная реплика может стать лидером с потерей части записей.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-36",
+    "Topic": "Kafka",
+    "Question": "Что такое retention?",
+    "Answer": "Правила удаления старых сегментов по времени или размеру, независимо от чтения consumer.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-37",
+    "Topic": "Kafka",
+    "Question": "Что такое log compaction?",
+    "Answer": "Постепенно сохраняет актуальные значения ключей; не выполняется мгновенно для каждой записи.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-38",
+    "Topic": "Kafka",
+    "Question": "Что такое tombstone?",
+    "Answer": "Запись с ключом и null-значением, обозначающая удаление в compacted topic.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-39",
+    "Topic": "Kafka",
+    "Question": "Можно ли перечитать сообщения?",
+    "Answer": "Да, изменив позицию чтения, пока данные доступны по правилам хранения.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-40",
+    "Topic": "Kafka",
+    "Question": "Для чего auto.offset.reset?",
+    "Answer": "Задаёт поведение при отсутствии или недоступности сохранённой позиции.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-41",
+    "Topic": "Kafka",
+    "Question": "Что такое consumer lag?",
+    "Answer": "Отставание позиции consumer от конца журнала; способ расчёта зависит от метрики.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-42",
+    "Topic": "Kafka",
+    "Question": "Как уменьшить задержки producer?",
+    "Answer": "Измерить batching, linger, компрессию, сеть и подтверждения; выбирать компромисс с пропускной способностью.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-43",
+    "Topic": "Kafka",
+    "Question": "Для чего batch.size?",
+    "Answer": "Ограничивает размер пакета записей producer для partition.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-44",
+    "Topic": "Kafka",
+    "Question": "Для чего linger.ms?",
+    "Answer": "Позволяет немного подождать для формирования более полного пакета.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-45",
+    "Topic": "Kafka",
+    "Question": "Зачем compression.type?",
+    "Answer": "Снижает объём передачи и хранения ценой вычислений.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-46",
+    "Topic": "Kafka",
+    "Question": "Что такое hot partition?",
+    "Answer": "Partition с непропорционально большой нагрузкой из-за ключей или распределения данных.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-47",
+    "Topic": "Kafka",
+    "Question": "Безопасно ли увеличивать число partition?",
+    "Answer": "Это может изменить распределение ключей и нарушить ожидаемый порядок их дальнейшей обработки.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-48",
+    "Topic": "Kafka",
+    "Question": "Для чего Kafka Connect?",
+    "Answer": "Для управляемых коннекторов между Kafka и внешними системами.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-49",
+    "Topic": "Kafka",
+    "Question": "Для чего Kafka Streams?",
+    "Answer": "Для построения потоковых приложений на клиентской библиотеке с обработкой и состоянием.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  },
+  {
+    "Id": "kafka-50",
+    "Topic": "Kafka",
+    "Question": "Для чего KRaft?",
+    "Answer": "Для управления метаданными Kafka через собственный консенсусный кворум контроллеров.",
+    "Source": "https://kafka.apache.org/41/design/design/"
+  }
+]

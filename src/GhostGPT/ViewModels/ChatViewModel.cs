@@ -9,6 +9,7 @@ public sealed class ChatMessage(string role, string text) : Observable
 }
 public partial class MainViewModel
 {
+    public IReadOnlyList<ChatTurn> SupplementalContext { get; set; } = [];
     public ObservableCollection<ChatMessage> Messages { get; } = [];
     private readonly List<ChatTurn> history = [];
     private CancellationTokenSource? requestCancellation;
@@ -40,6 +41,7 @@ public partial class MainViewModel
             var turns = new List<ChatTurn> { new("system", instruction) };
             if (context is not null) turns.AddRange(context);
             else turns.AddRange(LimitHistory(history, 24000));
+            turns.AddRange(SupplementalContext);
             turns.Add(user);
             Status = "Модель отвечает…";
             await foreach (var chunk in provider.StreamAsync(options, turns, requestCancellation.Token))

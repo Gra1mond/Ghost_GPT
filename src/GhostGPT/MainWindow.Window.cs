@@ -30,6 +30,9 @@ public partial class MainWindow
         var exclude = new CheckBox { Content = "Исключать окно из захвата", IsChecked = settings.ExcludeCapture };
         exclude.Click += (_, _) => { settings.ExcludeCapture = exclude.IsChecked == true; ApplyWindowSettings(); };
         SettingsHost.Children.Add(exclude);
+        var arrow = new CheckBox { Content = "Постоянный курсор-стрелка в окне", IsChecked = settings.ConstantArrowCursor };
+        arrow.Click += (_, _) => { settings.ConstantArrowCursor = arrow.IsChecked == true; ApplyWindowSettings(); };
+        SettingsHost.Children.Add(arrow);
         SettingsHost.Children.Add(new TextBlock { Text = "Горячие клавиши: Ctrl + Shift + выбранная клавиша", Margin = new(0, 20, 0, 8) });
         AddKeySetting("Вернуть поверх / отправить назад", settings.ToggleKey, v => settings.ToggleKey = v);
         AddKeySetting("Ответ по разговору", settings.AnswerKey, v => settings.AnswerKey = v);

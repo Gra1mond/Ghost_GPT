@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -7,6 +8,10 @@ namespace GhostGPT.Checks;
 internal static class Program
 {
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetCursor();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr LoadCursor(IntPtr instance, IntPtr name);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr SetCursor(IntPtr cursor);
     private static int count;
     [STAThread]
     private static int Main(string[] args)
@@ -29,6 +34,53 @@ internal static class Program
     }
     private static async Task Run()
     {
+        var catalog = QuestionCatalog.Load();
+        Check(catalog.Search("Go", "").Count == 50, "catalog contains fifty Go questions");
+        Check(catalog.Search("SQL", "").Count == 50, "catalog contains fifty SQL questions");
+        Check(catalog.Search("Kubernetes", "").Count == 50, "catalog contains fifty Kubernetes questions");
+        Check(catalog.Search("Kafka", "").Count == 50, "catalog contains fifty Kafka questions");
+        Check(catalog.Search("Go", "goroutine").Count > 0, "question search matches terms");
+        Check(catalog.Questions.Select(q => q.Question).Distinct().Count() == 200, "question titles unique");
+        var resumeTokens = new[] { "context-resume-secret" };
+        using var resumeClient = new HttpClient(new Handler(async (request, token) => {
+            using var body = System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var messages = body.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+            Check(messages.Any(m => m.GetProperty("role").GetString() == "user" && m.GetProperty("content").GetString()!.Contains(resumeTokens[0])), "chat payload includes opted-in resume as user data");
+            Check(!messages.Where(m => m.GetProperty("role").GetString() == "system").Any(m => m.GetProperty("content").GetString()!.Contains(resumeTokens[0])), "resume never becomes system instructions");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\ndata: [DONE]\n", Encoding.UTF8,"text/event-stream") };
+        }));
+        var resumeVm = new MainViewModel { SupplementalContext = InterviewContext.Resume(new ResumeData("cv",resumeTokens[0]),true) };
+        await resumeVm.SendAsync(new CompatibleProvider(resumeClient),new ProviderOptions("https://example.com/v1","test","test"),"instruction","question");
+        Check(resumeVm.Messages.Last().Text == "OK", "chat completes with resume context");
+        Check(QuestionCatalog.Prompt(catalog.Questions[0]).Contains(catalog.Questions[0].Question) && !QuestionCatalog.Prompt(catalog.Questions[0]).Contains(catalog.Questions[1].Question), "only selected question enters prompt");
+        Check(new Settings().ConstantArrowCursor, "constant arrow cursor enabled by default");
+        Check(ResumeDocument.ValidateText("Go developer") == "Go developer", "resume text accepted");
+        try { ResumeDocument.ValidateText(" "); throw new Exception("empty resume accepted"); } catch (InvalidDataException) { Check(true, "empty resume rejected"); }
+        var resumeFolder = Path.Combine(Path.GetTempPath(), "GhostGPT-resume-" + Guid.NewGuid());
+        Directory.CreateDirectory(resumeFolder);
+        try {
+            var input = Path.Combine(resumeFolder, "cv.txt"); File.WriteAllText(input, "Go developer");
+            var resume = ResumeDocument.Import(input); var store = new ResumeStore(resumeFolder);
+            store.Save(resume); Check(store.Load()?.Text == "Go developer", "resume survives encrypted reload");
+            Check(!File.ReadAllText(Path.Combine(resumeFolder, "resume.protected")).Contains("Go developer"), "resume not stored as plaintext");
+            Check(InterviewContext.Resume(resume, false).Count == 0, "resume excluded without consent");
+            Check(InterviewContext.Resume(resume, true).Single().Role == "user", "resume is untrusted user context");
+            store.Delete(); Check(store.Load() is null, "resume deletion persists");
+            try { ResumeDocument.ValidateText(new string('x',50001)); throw new Exception("oversized text accepted"); } catch (InvalidDataException) { Check(true,"oversized resume text rejected"); }
+            var docx = Path.Combine(resumeFolder,"cv.docx");
+            using (var zip = System.IO.Compression.ZipFile.Open(docx, System.IO.Compression.ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(zip.CreateEntry("word/document.xml").Open())) writer.Write("<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>Go engineer</w:t></w:r></w:p></w:body></w:document>");
+            Check(ResumeDocument.Import(docx).Text == "Go engineer", "DOCX extracts paragraph text locally");
+            var pdf = Path.Combine(resumeFolder,"cv.pdf");
+            var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder(); var page = builder.AddPage(UglyToad.PdfPig.Content.PageSize.A4);
+            var font = builder.AddStandard14Font(UglyToad.PdfPig.Fonts.Standard14Fonts.Standard14Font.Helvetica);
+            page.AddText("SQL developer", 12, new UglyToad.PdfPig.Core.PdfPoint(40,700), font); File.WriteAllBytes(pdf,builder.Build());
+            Check(ResumeDocument.Import(pdf).Text.Contains("SQL developer"), "PDF text layer imported locally");
+            File.WriteAllText(docx,"broken");
+            try { ResumeDocument.Import(docx); throw new Exception("broken DOCX accepted"); } catch (InvalidDataException) { Check(true,"corrupted DOCX rejected"); }
+            using (var large = File.Create(input)) large.SetLength(ResumeDocument.MaxBytes + 1);
+            try { ResumeDocument.Import(input); throw new Exception("large file accepted"); } catch (InvalidDataException) { Check(true,"oversized file rejected"); }
+        } finally { Directory.Delete(resumeFolder, true); }
         var options = new ProviderOptions("https://example.com/v1", "test-not-a-secret", "test-model");
         var wellflow = ConnectionPresets.Wellflow(options);
         Check(wellflow.Endpoint == "https://api.wellflow.dev/v1" && wellflow.Model == "gpt-5.6-sol" && wellflow.Key == "", "Wellflow preset clears other-provider key");
@@ -147,6 +199,23 @@ internal static class Program
         Check(((System.Windows.Controls.TextBox)window.FindName("InstructionEditor")).Text.Contains("Основной формат"), "instruction editor loads packaged INTERVIEW.md");
         var hwnd = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         Check(hwnd != IntPtr.Zero, "native window initializes");
+        var arrow = LoadCursor(IntPtr.Zero,new IntPtr(32512)); var resizeCursor = LoadCursor(IntPtr.Zero,new IntPtr(32644));
+        foreach (int hit in new[] { 1, 10, 11, 12, 13, 14, 15, 16, 17 }) {
+            SetCursor(resizeCursor); SendMessage(hwnd,0x20,hwnd,new IntPtr(hit));
+            Check(GetCursor() == arrow, "window cursor remains arrow for hit " + hit);
+        }
+        Check(System.Windows.Input.Mouse.OverrideCursor is null, "cursor policy does not override other windows");
+        var cursorWindow = new System.Windows.Window(); new System.Windows.Interop.WindowInteropHelper(cursorWindow).EnsureHandle();
+        using (var policy = new WindowService(cursorWindow)) {
+            policy.Apply(new Settings { ConstantArrowCursor = true });
+            var query = new System.Windows.Input.QueryCursorEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = System.Windows.Input.Mouse.QueryCursorEvent, Cursor = System.Windows.Input.Cursors.IBeam };
+            cursorWindow.RaiseEvent(query); Check(query.Cursor == System.Windows.Input.Cursors.Arrow, "text cursor becomes arrow inside controlled window");
+            policy.Apply(new Settings { ConstantArrowCursor = false });
+            query = new System.Windows.Input.QueryCursorEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = System.Windows.Input.Mouse.QueryCursorEvent, Cursor = System.Windows.Input.Cursors.IBeam };
+            cursorWindow.RaiseEvent(query); Check(query.Cursor == System.Windows.Input.Cursors.IBeam, "normal text cursor restored when disabled");
+        }
+        cursorWindow.Close();
+
         Check(GetWindowDisplayAffinity(hwnd, out var affinity) && affinity == 0x11, "Windows accepts capture exclusion flag");
         var fullscreenMethod = typeof(GhostGPT.MainWindow).GetMethod("ToggleFullscreen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         double savedWidth = window.Width, savedHeight = window.Height;
@@ -197,10 +266,10 @@ internal static class Program
             typeof(GhostGPT.MainWindow).GetMethod("RefreshHistory", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window,null);
             Check(((System.Windows.Controls.StackPanel)window.FindName("FolderTreeHost")).Children.Count == 1, "folder tree groups conversations");
             System.IO.Directory.CreateDirectory("artifacts/previews");
-            foreach (var name in new[] { "ChatPage", "ConversationPage", "SettingsPage", "InstructionsPage" })
+            foreach (var name in new[] { "ChatPage", "ConversationPage", "SettingsPage", "InstructionsPage", "ResumePage", "QuestionsPage" })
             {
                 var navigation = (System.Windows.Controls.StackPanel)window.FindName("Navigation");
-                int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : name == "SettingsPage" ? 2 : 3;
+                int tab = name == "ChatPage" ? 0 : name == "ConversationPage" ? 1 : name == "SettingsPage" ? 2 : name == "InstructionsPage" ? 3 : name == "ResumePage" ? 4 : 5;
                 ((System.Windows.Controls.Button)navigation.Children[tab]).RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 content.Measure(new(1040, 820)); content.Arrange(new(0, 0, 1040, 820)); content.UpdateLayout();
                 var image = new System.Windows.Media.Imaging.RenderTargetBitmap(1040, 820, 96, 96, System.Windows.Media.PixelFormats.Pbgra32); image.Render(content);

@@ -18,7 +18,7 @@ public partial class MainWindow : Window
         InitializeChat(); int connectionEnd = SettingsHost.Children.Count;
         InitializeScreenshots(); InitializeAudio();
         OrganizeSettings(appearanceCount, connectionEnd);
-        Navigate(ChatPage); UpdateSidebar(); InitializeHistory(); InitializeWorkspaceControls(); InitializeTray();
+        Navigate(ChatPage); UpdateSidebar(); InitializeHistory(); InitializeWorkspaceControls(); InitializeTray(); InitializeInterviewTools();
     }
     private void DragHeader(object sender, MouseButtonEventArgs e)
     {
@@ -98,13 +98,13 @@ public partial class MainWindow : Window
     private void ShowSettings(object s, RoutedEventArgs e) => Navigate(SettingsPage);
     private void Navigate(UIElement page)
     {
-        ChatPage.Visibility = ConversationPage.Visibility = SettingsPage.Visibility = InstructionsPage.Visibility = Visibility.Collapsed; page.Visibility = Visibility.Visible;
+        ChatPage.Visibility = ConversationPage.Visibility = SettingsPage.Visibility = InstructionsPage.Visibility = ResumePage.Visibility = QuestionsPage.Visibility = Visibility.Collapsed; page.Visibility = Visibility.Visible;
         for (int i = 0; i < Navigation.Children.Count; i++)
             ((Button)Navigation.Children[i]).Background = Brushes.Transparent;
-        int selected = page == ChatPage ? 0 : page == ConversationPage ? 1 : page == SettingsPage ? 2 : 3;
+        int selected = page == ChatPage ? 0 : page == ConversationPage ? 1 : page == SettingsPage ? 2 : page == InstructionsPage ? 3 : page == ResumePage ? 4 : 5;
         ((Button)Navigation.Children[selected]).Background = new SolidColorBrush(Color.FromArgb(65,100,103,108));
 
-        PageTitle.Text = selected == 0 ? "Чат" : selected == 1 ? "Разговор" : selected == 2 ? "Настройки" : "Инструкции";
+        PageTitle.Text = selected == 0 ? "Чат" : selected == 1 ? "Разговор" : selected == 2 ? "Настройки" : selected == 3 ? "Инструкции" : selected == 4 ? "Резюме" : "Вопросы";
     }
     private void MinimizeWindow(object s, RoutedEventArgs e) { if (trayIcon is not null || windowService?.CanHide == true) Hide(); else WindowState = WindowState.Minimized; }
     private void CloseWindow(object s, RoutedEventArgs e) => Close();
