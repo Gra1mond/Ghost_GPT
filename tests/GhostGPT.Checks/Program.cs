@@ -41,6 +41,17 @@ internal static class Program
         Check(catalog.Search("Kafka", "").Count == 50, "catalog contains fifty Kafka questions");
         Check(catalog.Search("Go", "goroutine").Count > 0, "question search matches terms");
         Check(catalog.Questions.Select(q => q.Question).Distinct().Count() == 200, "question titles unique");
+        var resumeTokens = new[] { "context-resume-secret" };
+        using var resumeClient = new HttpClient(new Handler(async (request, token) => {
+            using var body = System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var messages = body.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+            Check(messages.Any(m => m.GetProperty("role").GetString() == "user" && m.GetProperty("content").GetString()!.Contains(resumeTokens[0])), "chat payload includes opted-in resume as user data");
+            Check(!messages.Where(m => m.GetProperty("role").GetString() == "system").Any(m => m.GetProperty("content").GetString()!.Contains(resumeTokens[0])), "resume never becomes system instructions");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\ndata: [DONE]\n", Encoding.UTF8,"text/event-stream") };
+        }));
+        var resumeVm = new MainViewModel { SupplementalContext = InterviewContext.Resume(new ResumeData("cv",resumeTokens[0]),true) };
+        await resumeVm.SendAsync(new CompatibleProvider(resumeClient),new ProviderOptions("https://example.com/v1","test","test"),"instruction","question");
+        Check(resumeVm.Messages.Last().Text == "OK", "chat completes with resume context");
         Check(QuestionCatalog.Prompt(catalog.Questions[0]).Contains(catalog.Questions[0].Question) && !QuestionCatalog.Prompt(catalog.Questions[0]).Contains(catalog.Questions[1].Question), "only selected question enters prompt");
         Check(new Settings().ConstantArrowCursor, "constant arrow cursor enabled by default");
         Check(ResumeDocument.ValidateText("Go developer") == "Go developer", "resume text accepted");
@@ -194,6 +205,16 @@ internal static class Program
             Check(GetCursor() == arrow, "window cursor remains arrow for hit " + hit);
         }
         Check(System.Windows.Input.Mouse.OverrideCursor is null, "cursor policy does not override other windows");
+        var cursorWindow = new System.Windows.Window(); new System.Windows.Interop.WindowInteropHelper(cursorWindow).EnsureHandle();
+        using (var policy = new WindowService(cursorWindow)) {
+            policy.Apply(new Settings { ConstantArrowCursor = true });
+            var query = new System.Windows.Input.QueryCursorEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = System.Windows.Input.Mouse.QueryCursorEvent, Cursor = System.Windows.Input.Cursors.IBeam };
+            cursorWindow.RaiseEvent(query); Check(query.Cursor == System.Windows.Input.Cursors.Arrow, "text cursor becomes arrow inside controlled window");
+            policy.Apply(new Settings { ConstantArrowCursor = false });
+            query = new System.Windows.Input.QueryCursorEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0) { RoutedEvent = System.Windows.Input.Mouse.QueryCursorEvent, Cursor = System.Windows.Input.Cursors.IBeam };
+            cursorWindow.RaiseEvent(query); Check(query.Cursor == System.Windows.Input.Cursors.IBeam, "normal text cursor restored when disabled");
+        }
+        cursorWindow.Close();
 
         Check(GetWindowDisplayAffinity(hwnd, out var affinity) && affinity == 0x11, "Windows accepts capture exclusion flag");
         var fullscreenMethod = typeof(GhostGPT.MainWindow).GetMethod("ToggleFullscreen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;

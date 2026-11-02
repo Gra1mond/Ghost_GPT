@@ -53,11 +53,11 @@ public static class ResumeDocument
 public sealed class ResumeStore(string directory)
 {
     private string PathName => Path.Combine(directory, "resume.protected");
-    public ResumeData? Load() => File.Exists(PathName) ? JsonSerializer.Deserialize<ResumeData>(SecretStore.Unprotect(File.ReadAllText(PathName))) : null;
+    public ResumeData? Load() => File.Exists(PathName) ? new("Сохранённое резюме", ResumeDocument.ValidateText(SecretStore.Unprotect(File.ReadAllText(PathName)))) : null;
     public void Save(ResumeData resume)
     {
         ResumeDocument.ValidateText(resume.Text); Directory.CreateDirectory(directory);
-        File.WriteAllText(PathName + ".tmp", SecretStore.Protect(JsonSerializer.Serialize(resume)));
+        File.WriteAllText(PathName + ".tmp", SecretStore.Protect(resume.Text));
         File.Move(PathName + ".tmp", PathName, true);
     }
     public void Delete() { File.Delete(PathName); File.Delete(PathName + ".tmp"); }
